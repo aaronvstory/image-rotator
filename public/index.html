@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Manipulator - Bulk Photo Management</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="ocr-panel.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
@@ -44,13 +45,17 @@
                             <i class="fas fa-refresh"></i>
                             Refresh
                         </button>
+                        <button id="ocrAllBtn" class="btn btn-primary" style="margin-left: 10px;">
+                            <i class="fas fa-text-width"></i>
+                            OCR All
+                        </button>
                     </div>
                     <div class="current-folder">
                         <i class="fas fa-folder"></i>
                         <span id="currentFolder">No folder selected</span>
                     </div>
                 </div>
-                
+
                 <div class="right-controls">
                     <div class="grid-controls">
                         <label for="gridSize" class="grid-label">
@@ -60,9 +65,16 @@
                         <input type="range" id="gridSize" class="grid-slider" min="100" max="400" value="180" step="20">
                         <span id="gridSizeValue" class="grid-value">180px</span>
                     </div>
+                    <div class="grid-controls">
+                        <label class="grid-label" style="display:flex;align-items:center;gap:.4rem;">
+                            <span>Preview Delay</span>
+                            <input id="hoverDelayRange" type="range" min="0" max="2000" step="100" value="2000" style="width:140px;" />
+                            <span id="hoverDelayValue" style="min-width:46px;text-align:right;font-variant-numeric:tabular-nums;">2000ms</span>
+                        </label>
+                    </div>
                 </div>
             </div>
-            
+
             <div class="help-section">
                 <div class="help-text">
                     <i class="fas fa-info-circle"></i>
@@ -100,6 +112,7 @@
         </main>
     </div>
 
+    <script src="ocr-panel.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

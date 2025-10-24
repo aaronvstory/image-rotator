@@ -69,3 +69,40 @@ temp/
 # Build outputs
 dist/
 build/
+
+# YoYo AI version control directory
+.yoyo/
+
+# OCR job persistence
+.ocr_jobs/
+
+# Claude Code session files and conversation exports
+.claude-session
+.claude/
+*-this-session-is-being-continued-from-a-previous-*.txt
+*-caveat-the-messages-below-were-generated-by-the-*.txt
+2025-*-this-session-*.txt
+2025-*-caveat-*.txt
+202*-*-caveat-*.txt
+202*-*-this-session-*.txt
+claude-conversation-*.txt
+conversation-export-*.txt
+chat-export-*.txt
+
+# Test files and temporary artifacts
+test-*.js
+*-test.js
+*.test.js
+bash.exe.stackdump
+*.stackdump
+
+# Development documentation (keep permanent docs)
+OCR_*.md
+*_DOCUMENTATION.md
+*_RESULTS.md
+*_TEST_*.md
+
+# Development OCR files (temporary)
+server-ocr.js
+public/ocr-panel.css
+public/ocr-panel.js
