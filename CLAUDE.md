@@ -4,140 +4,166 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Image Manipulator is a Node.js/Express web application for bulk image rotation with a professional thumbnail grid interface. Built with Sharp for high-performance image processing, it provides efficient folder-based image management with smart hover previews and real-time rotation controls.
+Image Manipulator is a Node.js/Express web application for bulk image rotation with integrated OCR capabilities. The application provides a thumbnail grid interface for managing large collections of images with advanced features like hover previews, batch OCR processing for driver licenses, and real-time progress streaming.
+
+## Architecture
+
+### Backend (`server.js`, `server-ocr.js`)
+- **Express server** on port 3000 (configurable via PORT env var)
+- **Sharp library** for image processing (thumbnails, previews, rotation)
+- **OCR Service** using OpenRouter API (GPT-4o-mini model)
+- **Server-Sent Events (SSE)** for real-time OCR progress streaming
+- **Job persistence** in `.ocr_jobs/` directory
+
+### Frontend (`public/`)
+- **Pure vanilla JavaScript** (no frameworks) - ImageManipulator class
+- **OCRPanel class** (`ocr-panel.js`) for OCR UI management
+- **CSS Grid layout** with dynamic sizing via CSS variables
+- **WebSocket-like streaming** via EventSource for OCR progress
+
+### Key Design Patterns
+- **Recursive directory scanning** for finding images in subdirectories
+- **Throttling mechanism** (3-second cooldown) to prevent file corruption during rotation
+- **Lazy loading** with base64 thumbnail generation
+- **Job-based OCR processing** with cancellation support
+- **File-based result caching** (prevents reprocessing)
 
 ## Development Commands
 
-### Starting the Application
 ```bash
-# Quick start (Windows)
-start-image-manipulator.bat
+# Install dependencies
+npm install
 
-# Manual start
-npm start       # Starts on http://localhost:3000
-npm run dev     # Development mode with nodemon auto-restart
+# Start production server
+npm start
 
-# Set custom directory via environment variable
-IMAGE_DIR="C:\Photos" npm start
+# Start with auto-reload (nodemon)
+npm run dev
+
+# Required environment variables for OCR
+OPENROUTER_API_KEY=sk-or-...  # Required for OCR features
+OCR_CONCURRENCY=2              # Parallel OCR workers (default: 1)
+IMAGE_DIR=C:\path\to\images   # Optional default directory
 ```
 
-### Testing and Validation
+## Core API Endpoints
+
+### Image Operations
+- `GET /api/images` - List all images in current directory (recursive)
+- `POST /api/set-directory` - Change working directory
+- `GET /api/thumbnail/:imagePath` - Generate/serve thumbnail
+- `GET /api/preview/:imagePath` - Generate larger preview
+- `POST /api/rotate` - Rotate image (degrees: 90, -90, 180)
+
+### OCR Operations
+- `POST /api/ocr/batch` - Start batch OCR job
+- `GET /api/ocr/progress/:jobId` - SSE stream for live progress
+- `POST /api/ocr/job/:jobId/cancel` - Cancel running job
+- `GET /api/ocr/jobs` - List all persisted jobs
+- `GET /api/ocr/export/:jobId` - Export results as CSV
+
+## Working with Image Rotation
+
+The rotation system uses Sharp's `.rotate()` with these safeguards:
+1. **File locking prevention**: Atomic operations with temp files
+2. **Throttling**: 3-second cooldown per image (tracked in `lastRotationTime`)
+3. **Error recovery**: Multiple retry attempts with exponential backoff
+
+## OCR Processing Workflow
+
+1. **Job Creation**: Each batch OCR creates a unique job with ID
+2. **Image Discovery**: Recursive scan excluding already-processed files
+3. **Classification**: Images classified as license_front/license_back/selfie/unknown
+4. **Field Extraction**: Only driver licenses proceed to structured extraction
+5. **Result Storage**: JSON and TXT files saved beside source images
+6. **Progress Streaming**: Real-time updates via Server-Sent Events
+
+### OCR Result Structure
+```javascript
+{
+  firstName, lastName, middleName,
+  licenseNumber, dateOfBirth, expirationDate,
+  address, city, state, zipCode,
+  sex, height, weight, eyeColor,
+  restrictions, class,
+  imageType, processedAt, model, imagePath
+}
+```
+
+### OCR File Naming Convention
+- JSON results: `{original_filename}.ocr.json`
+- Text results: `{original_filename}.ocr.txt`
+- Example: `image.jpg` → `image.jpg.ocr.json` and `image.jpg.ocr.txt`
+
+## Testing Specific Features
+
 ```bash
-# Run test suite
-test.bat        # Windows batch test script
+# Test OCR on single image
+curl -X POST http://localhost:3000/api/ocr/single \
+  -H "Content-Type: application/json" \
+  -d '{"imagePath": "relative/path/to/image.jpg"}'
 
-# Manual server testing
-curl http://localhost:3000/api/images
-curl http://localhost:3000/api/directory
+# Check OCR job status
+curl http://localhost:3000/api/ocr/job/{jobId}
+
+# Export OCR results
+curl http://localhost:3000/api/ocr/export/{jobId} > results.csv
 ```
 
-### Cleanup
-```bash
-# Windows cleanup
-cleanup.bat     # Kills Node processes and cleans temp files
-```
+## Key Implementation Details
 
-## Architecture & Key Components
+### Concurrency Control
+- OCR processing uses worker pool pattern
+- Configurable via `OCR_CONCURRENCY` (max: 5)
+- Implements exponential backoff for rate limits (429 errors)
 
-### Backend Architecture (server.js)
-- **Express Server**: Serves static files and API endpoints on port 3000
-- **Sharp Integration**: High-performance image processing for rotation and thumbnail generation
-- **File System Operations**: Recursive directory scanning with robust error handling
-- **Retry Logic**: 3-attempt retry system with exponential backoff for Windows file locking issues
+### File Organization
+- OCR results: `{filename}.ocr.json` and `{filename}.ocr.txt`
+- Job persistence: `.ocr_jobs/{jobId}.json`
+- Thumbnails served dynamically (not cached on disk)
 
-### Frontend Architecture
-```
-public/
-├── index.html    # Single-page application interface
-├── style.css     # Modern dark theme with glassmorphism effects
-└── script.js     # Client-side logic for grid management and API interaction
-```
+### Error Handling Patterns
+- API retries with exponential backoff (100ms, 200ms, 400ms...)
+- Graceful degradation for failed images
+- Partial job completion on cancellation
+- Comprehensive error logging with context
 
-### API Endpoints
-- `GET /api/directory` - Get current working directory
-- `POST /api/directory` - Set new directory path
-- `GET /api/images` - Scan and retrieve all images from directory
-- `GET /api/thumbnail/:imagePath` - Generate and serve 150x150 thumbnail
-- `GET /api/preview/:imagePath` - Generate larger preview (1200x900 max)
-- `POST /api/rotate` - Rotate image by specified degrees
-
-### Image Processing Pipeline
-1. **Directory Scanning**: Recursive traversal finding all supported image formats
-2. **Thumbnail Generation**: 150x150 center-cropped thumbnails with 85% JPEG quality
-3. **Preview Generation**: 1200x900 max "fit inside" previews with 95% quality
-4. **Rotation Processing**: Atomic file operations with temp files to prevent corruption
-
-## Critical Implementation Details
-
-### File Rotation Safety (server.js:96-201)
-- Uses temporary files with atomic rename operations
-- Implements retry logic with exponential backoff (200ms, 400ms, 600ms)
-- Handles Windows file locking with specific error codes (EBUSY, EACCES, UNKNOWN)
-- Validates file integrity after write operations
-
-### Frontend State Management (script.js)
-- **Rotation Throttling**: 3-second cooldown per image stored in `rotationCooldowns` Map
-- **Hover Preview System**: 2-second delay with automatic cleanup on mouse leave
-- **Dynamic Grid Sizing**: CSS custom properties for real-time thumbnail resizing
-- **Error Recovery**: Automatic refresh and clear error display after 5 seconds
-
-### Supported Image Formats
-- JPEG (.jpg, .jpeg)
-- PNG (.png)
-- WebP (.webp)
-- GIF (.gif)
-- TIFF (.tiff)
-- BMP (.bmp)
+### Frontend State Management
+- ImageManipulator class manages image grid state
+- OCRPanel class handles OCR UI independently
+- localStorage for user preferences (hover delay, grid size)
+- No frontend framework dependencies
 
 ## Common Development Tasks
 
-### Adding New Image Format Support
-1. Add extension to `SUPPORTED_EXTENSIONS` array in server.js:19
-2. Verify Sharp supports the format
-3. Test thumbnail and rotation operations
+### Adding New OCR Fields
+1. Update field extraction prompt in `server-ocr.js::extractDriverLicenseInfo()`
+2. Modify result structure validation
+3. Update CSV export columns in `/api/ocr/export`
+4. Adjust frontend display in OCR panel
 
-### Modifying Rotation Behavior
-- Rotation logic: server.js:96-201 (`rotateImage` function)
-- Frontend controls: script.js rotation button handlers
-- Throttling duration: script.js `ROTATION_COOLDOWN` constant
+### Modifying Image Processing
+- Thumbnail generation: `generateThumbnail()` in server.js (150x150)
+- Preview generation: `generatePreview()` in server.js (1200x900)
+- Rotation logic: `/api/rotate` endpoint with Sharp
 
-### Customizing UI Theme
-- Color scheme: style.css CSS variables (`:root`)
-- Grid sizing: Modify `#gridSize` input range in index.html:60
-- Hover preview timing: script.js `setupHoverPreviews` function
-
-### Debugging File Lock Issues
-- Check server.js:204-210 `isRetryableError` function for error codes
-- Monitor console for retry attempts and specific error messages
-- Increase retry delays in server.js:114, 151, 177 if needed
+### Debugging OCR Issues
+- Check `.ocr_jobs/{jobId}.json` for detailed job state
+- Review individual `_ocr_results.json` files beside images
+- Monitor console for retry attempts and rate limits
+- Use `/api/ocr/job/{jobId}/raw` for complete job data
 
 ## Performance Considerations
 
-### Memory Management
-- Thumbnails generated on-demand, not cached server-side
-- Preview images use streaming buffers to minimize memory usage
-- Frontend lazy-loads images as they enter viewport
+- **Recursive scanning**: Can be slow for deep directories with many files
+- **Thumbnail generation**: Dynamic generation adds latency (consider caching)
+- **OCR rate limits**: Respect provider limits with concurrency control
+- **Memory usage**: Sharp processes images in-memory (watch for large files)
+- **SSE connections**: Long-lived connections for progress updates
 
-### Scalability Limits
-- Tested with directories containing 500+ images
-- Grid performance degrades beyond 1000 thumbnails (consider pagination)
-- File operations are sequential to prevent system overload
+## Security Notes
 
-## Error Handling Patterns
-
-### Backend Error Recovery
-- All async operations wrapped in try-catch blocks
-- Specific error messages for common failure modes
-- Graceful degradation with user-friendly error responses
-
-### Frontend Error Display
-- Toast-style error messages with auto-dismiss
-- Visual feedback for operation status (loading spinners, success indicators)
-- Countdown timers for rotation cooldown periods
-
-## Security Considerations
-
-- Path traversal prevention via `path.join()` for all file operations
-- No file uploads - only operates on existing local files
-- Input validation for directory paths and rotation degrees
-- No authentication required (localhost-only application)
+- Path traversal prevention in all file operations
+- API key validation for OCR endpoints
+- Input sanitization for directory paths
+- No direct file system access from frontend
