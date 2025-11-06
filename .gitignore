@@ -102,7 +102,6 @@ OCR_*.md
 *_RESULTS.md
 *_TEST_*.md
 
-# Development OCR files (temporary)
-server-ocr.js
-public/ocr-panel.css
-public/ocr-panel.js
+# Archive directory (created by /organize)
+archive/
+archives/
