@@ -1,0 +1,7 @@
+node_modules/
+.git/
+.env
+*.log
+.DS_Store
+.ocr_jobs/
+cleanup.md
