@@ -602,8 +602,8 @@ body {
     bottom: 0;
     background: rgba(17, 24, 39, 0.7);
     border-radius: 8px;
-    backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
 }
 
 .image-card.processing .btn-rotate {
@@ -691,8 +691,8 @@ body {
     transform: translateY(-10px) scale(0.95);
     transition: all 0.25s ease;
     pointer-events: none;
-    backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(15px);
     z-index: 10000;
 }
 
@@ -769,6 +769,7 @@ body {
 /* Batch Controls Section */
 .batch-controls-section {
     background: rgba(30, 41, 59, 0.6);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border-top: 1px solid rgba(148, 163, 184, 0.2);
     padding: 1rem 2rem;
@@ -840,8 +841,8 @@ body {
     align-items: center;
     gap: 4px;
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
-    backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
 }
 
 .ocr-processed-badge i {
@@ -882,6 +883,7 @@ body {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.7);
+    -webkit-backdrop-filter: blur(5px);
     backdrop-filter: blur(5px);
 }
 
@@ -1400,6 +1402,7 @@ body {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.8);
+    -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
 }
 
@@ -1644,9 +1647,22 @@ body {
 /* Firefox */
 .ocr-tab-content,
 .ocr-editor {
-    scrollbar-width: thin;
-    scrollbar-color: #3b82f6 rgba(30, 41, 59, 0.5);
-    scrollbar-gutter: stable;
+    /* defaults provided via @supports blocks below when available */
+}
+
+@supports (scrollbar-width: thin) {
+    .ocr-tab-content,
+    .ocr-editor {
+        scrollbar-width: thin;
+        scrollbar-color: #3b82f6 rgba(30, 41, 59, 0.5);
+    }
+}
+
+@supports (scrollbar-gutter: stable) {
+    .ocr-tab-content,
+    .ocr-editor {
+        scrollbar-gutter: stable;
+    }
 }
 
 /* ========================================
