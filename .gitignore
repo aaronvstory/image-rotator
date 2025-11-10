@@ -77,10 +77,10 @@ release/
 
 # YoYo AI version control directory
 .yoyo/
-
+.history/
 # OCR job persistence
 .ocr_jobs/
-
+.claude/
 # Claude Code session files and conversation exports
 .claude-session
 .claude/
