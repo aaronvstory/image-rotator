@@ -2,7 +2,7 @@
 require("dotenv").config();
 const express = require("express");
 const sharp = require("sharp");
-const fs = require("fs").promises;
+const fs = require("fs").promises;\nconst { constants } = require("fs");
 const path = require("path");
 
 const app = express();
@@ -114,7 +114,7 @@ async function rotateImage(imagePath, degrees) {
       );
 
       // Check if file is accessible
-      await fs.access(imagePath, fs.constants.R_OK | fs.constants.W_OK);
+      await fs.access(imagePath, constants.R_OK | constants.W_OK);
 
       // Read the original image with retry logic
       let imageBuffer;
@@ -1067,3 +1067,4 @@ app.listen(PORT, () => {
       .catch(() => {});
   }
 });
+

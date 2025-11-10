@@ -20,6 +20,7 @@ class BatchSelection {
     this.selectedIds = new Set(
       [...this.selectedIds].filter(id => imageIds.includes(id))
     );
+    this._notifyChange();
   }
 
   /**
@@ -147,3 +148,4 @@ class BatchSelection {
       }));
   }
 }
+

@@ -93,11 +93,11 @@ app.post('/api/directory', async (req,res)=>{ const {directory}=req.body||{}; if
 
 app.get('/api/images', async (req,res)=>{ if(!IMAGE_DIR) return res.json({success:true,count:0,images:[],directory:null}); const images=await scanImagesRecursively(IMAGE_DIR); res.json({success:true,count:images.length,images,directory:IMAGE_DIR}); });
 
-app.get('/api/thumbnail/:imagePath(*)', async (req,res)=>{ if(!IMAGE_DIR) return res.status(400).json({error:'No directory set'}); const full=path.join(IMAGE_DIR,req.params.imagePath); try{ await fs.access(full); const t=await generateThumbnail(full); res.set({'Content-Type':'image/jpeg','Cache-Control':'no-cache'}); res.send(t);} catch{ res.status(404).json({error:'Image not found or thumbnail failed'});} });
+app.(!isPathInside(full, path.resolve(IMAGE_DIR))) { return res.status(403).json({error:'Image not within configured directory'}); } try{ await fs.access(full); const t=await generateThumbnail(full); res.set({'Content-Type':'image/jpeg','Cache-Control':'no-cache'}); res.send(t);} catch{ res.status(404).json({error:'Image not found or thumbnail failed'});} });
 
-app.get('/api/preview/:imagePath(*)', async (req,res)=>{ if(!IMAGE_DIR) return res.status(400).json({error:'No directory set'}); const full=path.join(IMAGE_DIR,req.params.imagePath); try{ await fs.access(full); const p=await generatePreview(full); res.set({'Content-Type':'image/jpeg','Cache-Control':'no-cache'}); res.send(p);} catch{ res.status(404).json({error:'Image not found or preview failed'});} });
+app.(!isPathInside(full, path.resolve(IMAGE_DIR))) { return res.status(403).json({error:'Image not within configured directory'}); } try{ await fs.access(full); const p=await generatePreview(full); res.set({'Content-Type':'image/jpeg','Cache-Control':'no-cache'}); res.send(p);} catch{ res.status(404).json({error:'Image not found or preview failed'});} });
 
-app.post('/api/rotate', async (req,res)=>{ const {imagePath,degrees}=req.body||{}; if(!imagePath || typeof degrees!=='number') return res.status(400).json({success:false,error:'Missing imagePath or degrees'}); const full=path.join(IMAGE_DIR,imagePath); try{ await fs.access(full); await rotateImage(full,degrees); res.json({success:true,message:`Image rotated ${degrees} degrees`}); } catch { res.status(500).json({success:false,error:'Failed to rotate image'}); } });
+app.(!isPathInside(full, path.resolve(IMAGE_DIR))) { return res.status(403).json({success:false,error:'Image not within configured directory'}); } try{ await fs.access(full); await rotateImage(full,degrees); res.json({success:true,message:`Image rotated ${degrees} degrees`}); } catch { res.status(500).json({success:false,error:'Failed to rotate image'}); } });
 
 app.get('/api/ocr-results', async (req,res)=>{ const filePath=req.query.path; const isRaw=req.query.raw==='true'; if(!filePath) return res.status(400).json({error:'Path parameter required'}); const v=validateOCRPath(filePath); if(!v.valid) return res.status(403).json({error:v.error}); try{ const content=await fs.readFile(v.path,'utf-8'); if(isRaw) return res.type('text/plain').send(content); res.json(JSON.parse(content)); } catch { res.status(500).json({error:'Failed to read OCR results'}); } });
 
@@ -118,4 +118,6 @@ app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
 app.use('/api/batch', batchRoutes);
 
 app.listen(PORT,'0.0.0.0',()=>{ console.log(`\nWSL Functional Base server running at http://localhost:${PORT}`); console.log('Rollback tag: v1-polished-ui'); });
+
+
 

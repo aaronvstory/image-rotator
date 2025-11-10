@@ -64,28 +64,7 @@ router.post('/start', async (req, res) => {
     console.error('Error starting batch job:', error);
     res.status(500).json({ success: false, error: error.message });
   }
-});
-    }
-
-    const jobId = batchManager.createJob(items, options);
-
-    batchProcessor.processJob(jobId).catch((error) => {
-      console.error(`Batch job ${jobId} failed:`, error);
-    });
-
-    res.json({
-      success: true,
-      jobId,
-      totalItems: items.length,
-      options: batchManager.getJob(jobId).options
-    });
-  } catch (error) {
-    console.error('Error starting batch job:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-router.get('/progress/:jobId', (req, res) => {
+});\n});\n\nrouter.get('/progress/:jobId', (req, res) => {
   const { jobId } = req.params;
   const includeItems = req.query.includeItems === 'true';
   const job = batchManager.getJob(jobId);
@@ -206,4 +185,5 @@ router.delete('/job/:jobId', (req, res) => {
 });
 
 module.exports = router;
+
 

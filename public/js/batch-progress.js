@@ -30,7 +30,7 @@ class BatchProgress {
     this.eventSource = new EventSource(url);
 
     // Handle job updates
-    this.eventSource.addEventListener('job-update', (event) => {
+    this.eventSource.addEventListener('message', (event) => {
       try {
         const data = JSON.parse(event.data);
         this._handleUpdate(data);
@@ -231,3 +231,4 @@ class BatchProgress {
     }
   }
 }
+

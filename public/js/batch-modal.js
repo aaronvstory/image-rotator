@@ -389,3 +389,4 @@ class BatchModal {
     document.getElementById('batchResumeBtn').classList.remove('hidden');
   }
 }
+

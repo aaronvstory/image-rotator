@@ -96,7 +96,7 @@ class ImageManipulator {
 
         // Update all checkboxes
         this.images.forEach(image => {
-            const checkbox = document.querySelector(`input[data-image-path="${image.fullPath}"]`);
+            const checkbox = document.querySelector(`input[data-image-path="${encodeURIComponent(image.fullPath)}"]`);
             if (checkbox) {
                 checkbox.checked = this.batchSelection.isSelected(image.fullPath);
             }
@@ -854,3 +854,4 @@ document.addEventListener('keydown', (e) => {
         });
     }
 });
+
