@@ -13,37 +13,39 @@
         }
 
         // Setup filter buttons
-        document.querySelectorAll('.batch-filter-controls .filter-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const filter = e.currentTarget.dataset.filter;
-                this.applyFilter(filter);
+        const filterContainer = document.querySelector('.batch-filter-controls');
+        if (filterContainer) {
+            filterContainer.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const filter = e.currentTarget.dataset.filter;
+                    this.applyFilter(filter);
 
-                // Update active state
-                document.querySelectorAll('.batch-filter-controls .filter-btn').forEach(b => {
-                    b.classList.remove('active');
+                    filterContainer.querySelectorAll('.filter-btn').forEach(b => {
+                        b.classList.remove('active');
+                    });
+                    e.currentTarget.classList.add('active');
                 });
-                e.currentTarget.classList.add('active');
             });
-        });
+        }
 
-        // Setup "Select All Unprocessed" button
-        document.getElementById('selectUnprocessedBtn').addEventListener('click', () => {
+        document.getElementById('selectUnprocessedBtn')?.addEventListener('click', () => {
             this.selectAllUnprocessed();
         });
 
-        // Setup preset selector
-        document.getElementById('presetCount').addEventListener('change', (e) => {
-            const customInput = document.getElementById('customCount');
-            if (e.target.value === 'custom') {
-                customInput.classList.remove('hidden');
-                customInput.focus();
-            } else {
-                customInput.classList.add('hidden');
-            }
-        });
+        const presetDropdown = document.getElementById('presetCount');
+        const customInput = document.getElementById('customCount');
+        if (presetDropdown && customInput) {
+            presetDropdown.addEventListener('change', (e) => {
+                if (e.target.value === 'custom') {
+                    customInput.classList.remove('hidden');
+                    customInput.focus();
+                } else {
+                    customInput.classList.add('hidden');
+                }
+            });
+        }
 
-        // Setup "Select Next X" button
-        document.getElementById('selectNextBtn').addEventListener('click', () => {
+        document.getElementById('selectNextBtn')?.addEventListener('click', () => {
             this.selectNextUnprocessed();
         });
     };
@@ -78,9 +80,12 @@
         const processed = this.images.filter(img => img.hasOCRResults).length;
         const remaining = total - processed;
 
-        document.getElementById('statTotal').textContent = total;
-        document.getElementById('statProcessed').textContent = processed;
-        document.getElementById('statRemaining').textContent = remaining;
+        const totalEl = document.getElementById('statTotal');
+        const processedEl = document.getElementById('statProcessed');
+        const remainingEl = document.getElementById('statRemaining');
+        if (totalEl) totalEl.textContent = total;
+        if (processedEl) processedEl.textContent = processed;
+        if (remainingEl) remainingEl.textContent = remaining;
     };
 
     // Select all unprocessed images
@@ -102,6 +107,7 @@
     ImageManipulator.prototype.selectNextUnprocessed = function() {
         const presetDropdown = document.getElementById('presetCount');
         const customInput = document.getElementById('customCount');
+        if (!presetDropdown || !customInput) return;
 
         let count;
         if (presetDropdown.value === 'custom') {
@@ -132,6 +138,10 @@
 
     // View OCR results for an image
     ImageManipulator.prototype.viewOCRResults = function(imagePath) {
+        if (!this.ocrViewer || typeof this.ocrViewer.open !== 'function') {
+            console.warn('OCR Viewer is not available');
+            return;
+        }
         this.ocrViewer.open(imagePath);
     };
 

@@ -12,7 +12,8 @@ class BatchProcessor {
   constructor(batchManager) {
     this.batchManager = batchManager;
     this.processingJobs = new Set();
-    this.ocrProvider = new OCRProvider();
+    this.ocrProvider = null;
+    this.ocrProviderFactory = () => new OCRProvider();
   }
 
   async processJob(jobId) {
@@ -21,6 +22,7 @@ class BatchProcessor {
     }
 
     this.processingJobs.add(jobId);
+    this.ocrProvider = this.ocrProviderFactory();
 
     try {
       const job = this.batchManager.getJob(jobId);
@@ -39,16 +41,31 @@ class BatchProcessor {
         }
 
         const chunk = this.batchManager.getNextChunk(jobId);
-        if (chunk === null) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          continue;
+        if (chunk.length === 0) {
+          if (currentJob.controls.paused) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            continue;
+          }
+          break;
         }
-        if (chunk.length === 0) break;
 
         await this.processChunk(jobId, chunk);
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
     } finally {
+      if (this.ocrProvider) {
+        try {
+          if (typeof this.ocrProvider.shutdown === 'function') {
+            await this.ocrProvider.shutdown();
+          } else if (typeof this.ocrProvider.dispose === 'function') {
+            await this.ocrProvider.dispose();
+          }
+        } catch (error) {
+          console.warn('Error shutting down OCR provider', error);
+        } finally {
+          this.ocrProvider = null;
+        }
+      }
       this.processingJobs.delete(jobId);
     }
   }
@@ -59,7 +76,7 @@ class BatchProcessor {
 
     for (const item of chunk) {
       const currentJob = this.batchManager.getJob(jobId);
-      if (!currentJob || currentJob.controls.cancelRequested) break;
+      if (!currentJob || currentJob.controls.cancelRequested || currentJob.controls.paused) break;
 
       try {
         await this.processItem(jobId, item, job.options);
@@ -70,6 +87,9 @@ class BatchProcessor {
   }
 
   async processItem(jobId, item, options) {
+    if (!this.ocrProvider) {
+      throw new Error('OCR provider is not initialized');
+    }
     try {
       this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.PROCESSING);
 

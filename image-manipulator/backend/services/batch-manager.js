@@ -131,7 +131,7 @@ class BatchManager extends EventEmitter {
       return [];
     }
     if (job.controls.paused || job.status === JOB_STATUS.PAUSED) {
-      return null;
+      return [];
     }
 
     const chunk = [];

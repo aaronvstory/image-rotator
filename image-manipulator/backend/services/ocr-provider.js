@@ -3,11 +3,8 @@ const OCRService = require('../../../server-ocr');
 
 class OCRProvider {
   constructor() {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error('OPENROUTER_API_KEY environment variable is required');
-    }
-    this.service = new OCRService(apiKey);
+    this.apiKey = process.env.OPENROUTER_API_KEY || null;
+    this.service = this.apiKey ? new OCRService(this.apiKey) : null;
     this.initialized = false;
   }
 
@@ -18,6 +15,12 @@ class OCRProvider {
   }
 
   async processImage(imagePath, options = {}) {
+    if (!this.apiKey || !this.service) {
+      throw new Error('OPENROUTER_API_KEY environment variable is required before processing OCR jobs');
+    }
+    if (!this.initialized) {
+      await this.initialize();
+    }
     const response = await this.service.processImage(imagePath, options);
     const status = (response?.status || '').toLowerCase();
 
@@ -45,6 +48,15 @@ class OCRProvider {
 
   parseResult(data = {}) {
     return { ...data };
+  }
+
+  async shutdown() {
+    const svc = this.service;
+    if (svc && typeof svc.shutdown === 'function') {
+      await svc.shutdown();
+    } else if (svc && typeof svc.dispose === 'function') {
+      await svc.dispose();
+    }
   }
 }
 

@@ -73,8 +73,8 @@ class OCRViewer {
     // Extract base path for OCR files
     const ext = imagePath.match(/\.[^.]+$/)?.[0] || '';
     const basePath = imagePath.slice(0, -ext.length);
-    const jsonPath = `${basePath}_ocr_results.json`;
-    const txtPath = `${basePath}_ocr_results.txt`;
+    const jsonPath = `${basePath}.ocr.json`;
+    const txtPath = `${basePath}.ocr.txt`;
 
     try {
       // Fetch OCR results
@@ -303,7 +303,7 @@ class OCRViewer {
         </div>
         <div class="field">
           <div class="field-label">Cost:</div>
-          <div class="field-value">$${data.cost?.toFixed(4) || '0.0000'}</div>
+          <div class="field-value">$${this.formatCost(data.cost)}</div>
         </div>
       </div>
     `;
@@ -401,6 +401,14 @@ Hair Color: ${data.hairColor || 'N/A'}
     return parts.join(' ') || 'N/A';
   }
 
+  formatCost(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return '0.0000';
+    }
+    return numeric.toFixed(4);
+  }
+
   async saveChanges() {
     try {
       // Get the edited content based on active tab
@@ -420,7 +428,7 @@ Hair Color: ${data.hairColor || 'N/A'}
 
         const ext = this.currentImagePath.match(/\.[^.]+$/)?.[0] || '';
         const basePath = this.currentImagePath.slice(0, -ext.length);
-        const txtPath = `${basePath}_ocr_results.txt`;
+        const txtPath = `${basePath}.ocr.txt`;
 
         const response = await fetch('/api/ocr-results/save', {
           method: 'POST',
@@ -448,7 +456,7 @@ Hair Color: ${data.hairColor || 'N/A'}
       // Save JSON changes
       const ext = this.currentImagePath.match(/\.[^.]+$/)?.[0] || '';
       const basePath = this.currentImagePath.slice(0, -ext.length);
-      const jsonPath = `${basePath}_ocr_results.json`;
+      const jsonPath = `${basePath}.ocr.json`;
 
       const response = await fetch('/api/ocr-results/save', {
         method: 'POST',

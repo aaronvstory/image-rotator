@@ -263,7 +263,7 @@ class BatchModal {
     document.getElementById('batchFailed').textContent = stats.failed;
 
     // Update progress bar
-    const progress = BatchProgress.calculateProgress(stats);
+    const progress = BatchModal.calculateProgress(stats);
     document.getElementById('batchProgressFill').style.width = `${progress}%`;
     document.getElementById('batchProgressPercent').textContent = `${progress}%`;
 
@@ -272,7 +272,7 @@ class BatchModal {
     const completed = stats.completed + stats.failed + stats.skipped;
     const avgTime = completed > 0 ? elapsed / completed : 0;
     const remaining = stats.total - completed;
-    const estimate = BatchProgress.formatTimeEstimate(remaining, avgTime);
+    const estimate = BatchModal.formatTimeEstimate(remaining, avgTime);
     document.getElementById('batchProgressTime').textContent = estimate;
 
     // Update results list
@@ -396,3 +396,26 @@ class BatchModal {
     document.getElementById('batchResumeBtn').classList.remove('hidden');
   }
 }
+
+BatchModal.calculateProgress = function(stats) {
+  if (!stats || !stats.total) return 0;
+  const completed = (stats.completed || 0) + (stats.failed || 0) + (stats.skipped || 0);
+  return Math.round((completed / stats.total) * 100);
+};
+
+BatchModal.formatTimeEstimate = function(itemsRemaining, avgTimePerItem) {
+  if (!itemsRemaining) return 'Complete';
+  if (!avgTimePerItem) return 'Calculating...';
+
+  const totalMs = itemsRemaining * avgTimePerItem;
+  const seconds = Math.ceil(totalMs / 1000);
+  if (seconds < 60) {
+    return `~${seconds}s remaining`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) {
+    return `~${minutes}m remaining`;
+  }
+  const hours = Math.ceil(minutes / 60);
+  return `~${hours}h remaining`;
+};

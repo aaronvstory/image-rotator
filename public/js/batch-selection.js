@@ -14,7 +14,11 @@ class BatchSelection {
     if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
       return globalThis.crypto.randomUUID();
     }
-    const randomPart = Math.random().toString(16).slice(2);
+    const randomPart = (globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function')
+      ? Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+      : Math.random().toString(16).slice(2);
     return `item_${Date.now()}_${index}_${randomPart}`;
   }
 
