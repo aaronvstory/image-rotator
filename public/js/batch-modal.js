@@ -169,14 +169,15 @@ class BatchModal {
 
     // Filter buttons scoped to modal
     const filterButtons = this.modal.querySelectorAll('.batch-results-filter .filter-btn');
-    filterButtons.forEach(btn => {
+    filterButtons.forEach((btn) => {
       btn.addEventListener('click', (e) => {
-        const filter = e.target.dataset.filter;
+        e.preventDefault();
+        const button = e.currentTarget;
+        const filter = button.dataset.filter || 'all';
         this.applyFilter(filter);
 
-        // Update active state
-        filterButtons.forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
+        filterButtons.forEach((b) => b.classList.remove('active'));
+        button.classList.add('active');
       });
     });
 

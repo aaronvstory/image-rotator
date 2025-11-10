@@ -107,9 +107,16 @@ function validateOCRPath(fp) {
 }
 
 function resolveImagePath(imagePath) {
-  if (!IMAGE_DIR) return null;
+  if (!IMAGE_DIR || typeof imagePath !== 'string') {
+    return null;
+  }
+
   const root = path.resolve(path.normalize(IMAGE_DIR));
-  const abs = path.resolve(path.normalize(imagePath));
+  const normalizedInput = path.normalize(imagePath);
+  const abs = path.isAbsolute(normalizedInput)
+    ? path.resolve(normalizedInput)
+    : path.resolve(root, normalizedInput);
+
   if (!isPathInside(abs, root)) {
     return null;
   }
@@ -207,7 +214,6 @@ app.get('/api/ocr-results', async (req, res) => {
       }
 
       const content = await fs.readFile(validation.path, 'utf-8');
-      res.set('X-OCR-Result-Path', validation.path);
       if (isRaw) {
         return res.type('text/plain').send(content);
       }
@@ -227,7 +233,6 @@ app.get('/api/ocr-results', async (req, res) => {
     }
 
     const content = await fs.readFile(targetPath, 'utf-8');
-    res.set('X-OCR-Result-Path', targetPath);
     if (isRaw) {
       return res.type('text/plain').send(content);
     }

@@ -137,11 +137,19 @@ class BatchManager extends EventEmitter {
     const chunk = [];
     for (const item of job.queue) {
       if (item.status === ITEM_STATUS.PENDING) {
+        const startedAt = new Date().toISOString();
         item.status = ITEM_STATUS.PROCESSING;
-        item.startedAt = new Date().toISOString();
+        item.startedAt = startedAt;
+        item.completedAt = null;
         chunk.push(item);
         job.stats.pending--;
         job.stats.processing++;
+        this.emit('itemStatusChanged', {
+          jobId,
+          itemId: item.id,
+          status: ITEM_STATUS.PROCESSING,
+          meta: { startedAt }
+        });
       }
       if (chunk.length >= job.controls.chunkSize) break;
     }
@@ -156,31 +164,46 @@ class BatchManager extends EventEmitter {
     const item = job.queue.find((entry) => entry.id === itemId);
     if (!item) return;
 
+    const metaPayload = meta || {};
     const oldStatus = item.status;
-    if (oldStatus === newStatus) return;
+    const applyMeta = () => {
+      const hasOwn = Object.prototype.hasOwnProperty;
+      if (hasOwn.call(metaPayload, 'error')) item.error = metaPayload.error;
+      if (hasOwn.call(metaPayload, 'result')) item.result = metaPayload.result;
+      if (hasOwn.call(metaPayload, 'savedFiles')) item.savedFiles = metaPayload.savedFiles;
+      if (typeof metaPayload.retries === 'number') item.retries = metaPayload.retries;
+      if (hasOwn.call(metaPayload, 'startedAt')) item.startedAt = metaPayload.startedAt;
+      if (hasOwn.call(metaPayload, 'completedAt')) item.completedAt = metaPayload.completedAt;
+    };
+
+    if (oldStatus === newStatus) {
+      applyMeta();
+      this.emit('itemStatusChanged', { jobId, itemId, status: newStatus, meta: metaPayload });
+      return;
+    }
 
     item.status = newStatus;
     if (newStatus === ITEM_STATUS.PENDING) {
       item.startedAt = null;
       item.completedAt = null;
-      if (!meta.preserveError) item.error = null;
-      if (!meta.preserveResult) {
+      if (!metaPayload.preserveError) item.error = null;
+      if (!metaPayload.preserveResult) {
         item.result = null;
         item.savedFiles = null;
       }
+    } else if (newStatus === ITEM_STATUS.PROCESSING) {
+      item.startedAt = metaPayload.startedAt || new Date().toISOString();
+      item.completedAt = null;
     }
 
     if ([ITEM_STATUS.COMPLETED, ITEM_STATUS.FAILED, ITEM_STATUS.SKIPPED].includes(newStatus)) {
       item.completedAt = new Date().toISOString();
     }
 
-    if (meta.error) item.error = meta.error;
-    if (meta.result) item.result = meta.result;
-    if (meta.savedFiles) item.savedFiles = meta.savedFiles;
-    if (typeof meta.retries === 'number') item.retries = meta.retries;
+    applyMeta();
 
     this._updateStats(job, oldStatus, newStatus);
-    this.emit('itemStatusChanged', { jobId, itemId, status: newStatus, meta });
+    this.emit('itemStatusChanged', { jobId, itemId, status: newStatus, meta: metaPayload });
     this._checkJobCompletion(jobId);
   }
 

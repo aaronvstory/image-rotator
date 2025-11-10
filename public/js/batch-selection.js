@@ -154,7 +154,7 @@ class BatchSelection {
     return images
       .filter(img => selectedIds.includes(img.id ?? img.fullPath))
       .map((img, index) => ({
-        id: img.id || BatchSelection.generateItemId(index),
+        id: img.id ?? img.fullPath,
         path: img.fullPath,
         filename: img.filename
       }));

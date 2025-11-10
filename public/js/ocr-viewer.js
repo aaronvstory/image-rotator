@@ -81,7 +81,6 @@ class OCRViewer {
         throw new Error('Failed to load OCR results');
       }
 
-      this.currentJsonPath = response.headers.get('X-OCR-Result-Path');
       this.currentData = await response.json();
 
       // Update filename display
@@ -396,7 +395,6 @@ Hair Color: ${data.hairColor || 'N/A'}
         return;
       }
 
-      this.currentTxtPath = response.headers.get('X-OCR-Result-Path');
       const text = await response.text();
       editor.value = text;
 

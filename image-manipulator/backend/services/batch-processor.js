@@ -3,7 +3,7 @@
  * Runs OCR processing in chunks using the OCR provider + helper services.
  */
 
-const { ITEM_STATUS } = require('./batch-manager');
+const { ITEM_STATUS, JOB_STATUS } = require('./batch-manager');
 const { shouldSkipImage } = require('./skip-detector');
 const { saveOCRResults } = require('./result-saver');
 const { OCRProvider } = require('./ocr-provider');
@@ -101,7 +101,14 @@ class BatchProcessor {
         throw new Error(`OCR provider is not initialized for job: ${jobId}`);
       }
 
-      this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.PROCESSING);
+      if (item.status !== ITEM_STATUS.PROCESSING) {
+        this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.PROCESSING);
+      }
+
+      if (this._isCancellationRequested(jobId)) {
+        this._markCancelled(jobId, item.id);
+        return;
+      }
 
       const skip = await shouldSkipImage(item.path, options);
       if (skip) {
@@ -111,7 +118,17 @@ class BatchProcessor {
         return;
       }
 
+      if (this._isCancellationRequested(jobId)) {
+        this._markCancelled(jobId, item.id);
+        return;
+      }
+
       const ocrResult = await provider.processImage(item.path, options);
+
+      if (this._isCancellationRequested(jobId)) {
+        this._markCancelled(jobId, item.id);
+        return;
+      }
 
       if (ocrResult.skipped) {
         this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.SKIPPED, {
@@ -127,6 +144,11 @@ class BatchProcessor {
 
       const saveResult = await saveOCRResults(item.path, ocrResult.data, options);
 
+      if (this._isCancellationRequested(jobId)) {
+        this._markCancelled(jobId, item.id);
+        return;
+      }
+
       this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.COMPLETED, {
         result: ocrResult.data,
         savedFiles: saveResult.files
@@ -139,12 +161,30 @@ class BatchProcessor {
       const allowedRetries = options?.retryCount ?? 0;
       const currentRetries = typeof item.retries === 'number' ? item.retries : 0;
       const nextRetries = currentRetries + 1;
+      const jobState = this.batchManager.getJob(jobId);
+      if (jobState && (jobState.controls.cancelRequested || jobState.status === JOB_STATUS.CANCELLED)) {
+        return;
+      }
       if (nextRetries <= allowedRetries) {
         this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.PENDING, {
           retries: nextRetries
         });
       }
     }
+  }
+
+  _isCancellationRequested(jobId) {
+    const job = this.batchManager.getJob(jobId);
+    if (!job) return true;
+    return job.status === JOB_STATUS.CANCELLED || job.controls.cancelRequested;
+  }
+
+  _markCancelled(jobId, itemId) {
+    this.batchManager.updateItemStatus(jobId, itemId, ITEM_STATUS.FAILED, {
+      error: 'Cancelled while processing',
+      preserveResult: true,
+      preserveError: true
+    });
   }
 
   _requeueItems(jobId, items) {

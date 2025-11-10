@@ -253,9 +253,15 @@ class BatchProgress {
    * @returns {number} - Percentage 0-100
    */
   static calculateProgress(stats) {
-    if (!stats || stats.total === 0) return 0;
+    if (
+      !stats ||
+      !Number.isFinite(stats.total) ||
+      stats.total <= 0
+    ) {
+      return 0;
+    }
 
-    const completed = stats.completed + stats.failed + stats.skipped;
+    const completed = (stats.completed || 0) + (stats.failed || 0) + (stats.skipped || 0);
     return Math.round((completed / stats.total) * 100);
   }
 

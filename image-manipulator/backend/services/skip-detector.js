@@ -14,7 +14,7 @@ function buildCandidatePaths(basePath, originalPath, suffixes) {
   const candidates = new Set();
   suffixes.forEach((suffix) => {
     candidates.add(path.normalize(`${basePath}${suffix}`));
-    if (suffix.startsWith('.ocr')) {
+    if (originalPath) {
       candidates.add(path.normalize(`${originalPath}${suffix}`));
     }
   });

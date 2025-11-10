@@ -184,7 +184,7 @@ class ImageManipulator {
         });
 
         // Setup hover delay controls
-        const hoverSlider = document.getElementById('hoverDelay');
+        const hoverSlider = document.getElementById('hoverDelayRange') || document.getElementById('hoverDelay');
         const hoverValue = document.getElementById('hoverDelayValue');
         const hoverInput = document.getElementById('hoverDelayInput');
 
@@ -870,4 +870,3 @@ document.addEventListener('keydown', (e) => {
         });
     }
 });
-
