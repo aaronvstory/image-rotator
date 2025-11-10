@@ -64,7 +64,9 @@ router.post('/start', async (req, res) => {
     console.error('Error starting batch job:', error);
     res.status(500).json({ success: false, error: error.message });
   }
-});\n});\n\nrouter.get('/progress/:jobId', (req, res) => {
+});
+
+router.get('/progress/:jobId', (req, res) => {
   const { jobId } = req.params;
   const includeItems = req.query.includeItems === 'true';
   const job = batchManager.getJob(jobId);

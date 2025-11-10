@@ -29,8 +29,8 @@ class BatchProgress {
     const url = `/api/batch/progress/${jobId}?includeItems=true`;
     this.eventSource = new EventSource(url);
 
-    // Handle job updates
-    this.eventSource.addEventListener('message', (event) => {
+    // Handle job updates (server emits "job-update" events)
+    this.eventSource.addEventListener('job-update', (event) => {
       try {
         const data = JSON.parse(event.data);
         this._handleUpdate(data);
