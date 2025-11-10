@@ -437,6 +437,7 @@ class ImageManipulator {
 
         const thumbnailUrl = `/api/thumbnail/${encodeURIComponent(image.relativePath)}?t=${Date.now()}`;
         const isSelected = this.batchSelection ? this.batchSelection.isSelected(image.fullPath) : false;
+        const encodedPath = encodeURIComponent(image.fullPath);
 
         // Add OCR processed badge if results exist
         const ocrBadge = image.hasOCRResults ? `
@@ -450,9 +451,8 @@ class ImageManipulator {
             <div class="batch-checkbox-container">
                 <input type="checkbox"
                        class="batch-checkbox"
-                       data-image-path="${image.fullPath}"
-                       ${isSelected ? 'checked' : ''}
-                       onclick="imageManipulator.toggleImageSelection('${image.fullPath}')">
+                       data-image-path="${encodedPath}"
+                       ${isSelected ? 'checked' : ''}>
             </div>
             ${ocrBadge}
             <div class="image-thumbnail" onclick="imageManipulator.rotateImage(${index}, 90)">
@@ -479,6 +479,14 @@ class ImageManipulator {
             </div>
         `;
 
+        const checkbox = card.querySelector('.batch-checkbox');
+        if (checkbox) {
+            checkbox.addEventListener('change', () => {
+                const decodedPath = decodeURIComponent(checkbox.dataset.imagePath || '');
+                this.toggleImageSelection(decodedPath);
+            });
+        }
+
         // Add hover preview functionality
         this.setupHoverPreview(card, image);
 
@@ -486,7 +494,7 @@ class ImageManipulator {
     }
 
     toggleImageSelection(imagePath) {
-        if (this.batchSelection) {
+        if (this.batchSelection && imagePath) {
             this.batchSelection.toggleImage(imagePath);
         }
     }

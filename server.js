@@ -61,7 +61,24 @@ async function rotateImage(p, deg) {
   if (last) throw last;
 }
 
-function validateOCRPath(fp){ if(!IMAGE_DIR) return {valid:false,error:'No image directory configured'}; const abs=path.resolve(fp); const root=path.resolve(IMAGE_DIR); if(!abs.startsWith(root)) return {valid:false,error:'Path must be within image directory'}; const name=path.basename(abs); if(!name.endsWith('_ocr_results.json') && !name.endsWith('_ocr_results.txt')) return {valid:false,error:'Invalid OCR results file'}; return {valid:true,path:abs}; }
+function isPathInside(child, parent) {
+  const relative = path.relative(parent, child);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function validateOCRPath(fp) {
+  if (!IMAGE_DIR) return { valid: false, error: 'No image directory configured' };
+  const root = path.resolve(path.normalize(IMAGE_DIR));
+  const abs = path.resolve(path.normalize(fp));
+  if (!isPathInside(abs, root) && abs !== root) {
+    return { valid: false, error: 'Path must be within image directory' };
+  }
+  const name = path.basename(abs);
+  if (!name.endsWith('_ocr_results.json') && !name.endsWith('_ocr_results.txt')) {
+    return { valid: false, error: 'Invalid OCR results file' };
+  }
+  return { valid: true, path: abs };
+}
 
 app.get('/api/directory', (req,res)=> res.json({success:true,directory:IMAGE_DIR}));
 
@@ -79,7 +96,17 @@ app.get('/api/ocr-results', async (req,res)=>{ const filePath=req.query.path; co
 
 app.post('/api/ocr-results/save', async (req,res)=>{ const {path:fp,content}=req.body||{}; if(!fp || typeof content!=='string') return res.status(400).json({error:'Path and content required'}); const v=validateOCRPath(fp); if(!v.valid) return res.status(403).json({error:v.error}); try{ await fs.writeFile(v.path,content,'utf-8'); res.json({success:true}); } catch { res.status(500).json({error:'Failed to save OCR results'}); } });
 
-app.get('/api/ocr/has/:imagePath(*)', async (req,res)=>{ if(!IMAGE_DIR) return res.json({success:true,has:false}); const full=path.join(IMAGE_DIR,req.params.imagePath); const files=await checkResultFiles(full); res.json({success:true,has:files.json||files.txt}); });
+app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
+  if (!IMAGE_DIR) return res.json({ success: true, has: false });
+  const full = path.join(IMAGE_DIR, req.params.imagePath);
+  try {
+    const files = await checkResultFiles(full);
+    res.json({ success: true, has: files.json || files.txt });
+  } catch (error) {
+    console.error('Error checking OCR files', error);
+    res.status(500).json({ success: false, error: 'Failed to check OCR files' });
+  }
+});
 
 app.use('/api/batch', batchRoutes);
 

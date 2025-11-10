@@ -12,6 +12,20 @@ class BatchModal {
     this.createModal();
   }
 
+  static escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value).replace(/[&<>"']/g, (match) => {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      };
+      return map[match];
+    });
+  }
+
   /**
    * Create modal HTML structure
    * @private
@@ -300,22 +314,29 @@ class BatchModal {
    */
   updateResultsList(items) {
     const container = document.getElementById('batchResultsList');
+    const allowedStatuses = ['pending', 'processing', 'completed', 'failed', 'skipped'];
 
     // Clear and rebuild
-    container.innerHTML = items.map(item => `
-      <div class="batch-result-item batch-result-${item.status}" data-status="${item.status}">
+    container.innerHTML = items.map(item => {
+      const status = allowedStatuses.includes(item.status) ? item.status : 'pending';
+      const filename = BatchModal.escapeHtml(item.filename || 'Unnamed file');
+      const error = item.error ? `<div class="result-error">${BatchModal.escapeHtml(item.error)}</div>` : '';
+
+      return `
+      <div class="batch-result-item batch-result-${status}" data-status="${status}">
         <div class="result-icon">
-          ${this.getStatusIcon(item.status)}
+          ${this.getStatusIcon(status)}
         </div>
         <div class="result-info">
-          <div class="result-filename">${item.filename}</div>
-          ${item.error ? `<div class="result-error">${item.error}</div>` : ''}
+          <div class="result-filename">${filename}</div>
+          ${error}
         </div>
         <div class="result-status">
-          <span class="status-badge status-${item.status}">${item.status}</span>
+          <span class="status-badge status-${status}">${status}</span>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   /**

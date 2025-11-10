@@ -1,0 +1,224 @@
+/**
+ * Batch Manager
+ * Keeps in-memory state for each batch job (queue, stats, controls).
+ */
+
+const EventEmitter = require('events');
+const { v4: uuidv4 } = require('uuid');
+
+const ITEM_STATUS = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  SKIPPED: 'skipped'
+};
+
+const JOB_STATUS = {
+  QUEUED: 'queued',
+  PROCESSING: 'processing',
+  PAUSED: 'paused',
+  COMPLETED: 'completed',
+  COMPLETED_WITH_ERRORS: 'completed_with_errors',
+  CANCELLED: 'cancelled'
+};
+
+const DEFAULT_OPTIONS = {
+  chunkSize: 50,
+  retryCount: 2,
+  overwrite: 'skip',
+  outputFormat: ['json', 'txt']
+};
+
+class BatchManager extends EventEmitter {
+  constructor(options = {}) {
+    super();
+    this.maxQueueSize = options.maxQueueSize || 1000;
+    this.defaultOptions = { ...DEFAULT_OPTIONS, ...(options.defaultOptions || {}) };
+    this.jobs = new Map();
+  }
+
+  createJob(items, options = {}) {
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error('Cannot create job with empty items array');
+    }
+    if (items.length > this.maxQueueSize) {
+      throw new Error(`Batch size ${items.length} exceeds maximum ${this.maxQueueSize}`);
+    }
+
+    const jobId = options.jobId || `batch_${Date.now()}_${uuidv4().slice(0, 8)}`;
+    const now = new Date().toISOString();
+    const mergedOptions = { ...this.defaultOptions, ...options };
+
+    const queueItems = items.map((item, index) => ({
+      id: item.id || `${jobId}_item_${index}`,
+      path: item.path,
+      filename: item.filename || this._getFilename(item.path),
+      status: ITEM_STATUS.PENDING,
+      retries: 0,
+      error: null,
+      result: null,
+      savedFiles: null,
+      startedAt: null,
+      completedAt: null
+    }));
+
+    const job = {
+      id: jobId,
+      status: JOB_STATUS.QUEUED,
+      options: mergedOptions,
+      controls: {
+        paused: false,
+        cancelRequested: false,
+        chunkSize: mergedOptions.chunkSize
+      },
+      stats: {
+        total: queueItems.length,
+        pending: queueItems.length,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+        skipped: 0
+      },
+      queue: queueItems,
+      createdAt: now,
+      startedAt: null,
+      completedAt: null
+    };
+
+    this.jobs.set(jobId, job);
+    this.emit('jobCreated', { jobId, totalItems: queueItems.length, options: mergedOptions });
+    return jobId;
+  }
+
+  getJob(jobId) {
+    return this.jobs.get(jobId) || null;
+  }
+
+  getAllJobs() {
+    return Array.from(this.jobs.values()).map((job) => ({
+      id: job.id,
+      status: job.status,
+      stats: job.stats,
+      createdAt: job.createdAt
+    }));
+  }
+
+  deleteJob(jobId) {
+    this.jobs.delete(jobId);
+    this.emit('jobDeleted', { jobId });
+  }
+
+  startJob(jobId) {
+    const job = this.jobs.get(jobId);
+    if (!job) return;
+    job.status = JOB_STATUS.PROCESSING;
+    job.startedAt = new Date().toISOString();
+    this.emit('jobStarted', { jobId });
+  }
+
+  getNextChunk(jobId) {
+    const job = this.jobs.get(jobId);
+    if (!job) return [];
+
+    const chunk = [];
+    for (const item of job.queue) {
+      if (item.status === ITEM_STATUS.PENDING) {
+        item.status = ITEM_STATUS.PROCESSING;
+        item.startedAt = new Date().toISOString();
+        chunk.push(item);
+        job.stats.pending--;
+        job.stats.processing++;
+      }
+      if (chunk.length >= job.controls.chunkSize) break;
+    }
+
+    return chunk;
+  }
+
+  updateItemStatus(jobId, itemId, newStatus, meta = {}) {
+    const job = this.jobs.get(jobId);
+    if (!job) return;
+
+    const item = job.queue.find((entry) => entry.id === itemId);
+    if (!item) return;
+
+    const oldStatus = item.status;
+    if (oldStatus === newStatus) return;
+
+    item.status = newStatus;
+    item.completedAt = [ITEM_STATUS.COMPLETED, ITEM_STATUS.FAILED, ITEM_STATUS.SKIPPED].includes(newStatus)
+      ? new Date().toISOString()
+      : item.completedAt;
+    if (meta.error) item.error = meta.error;
+    if (meta.result) item.result = meta.result;
+    if (meta.savedFiles) item.savedFiles = meta.savedFiles;
+    if (typeof meta.retries === 'number') item.retries = meta.retries;
+
+    this._updateStats(job, oldStatus, newStatus);
+    this.emit('itemStatusChanged', { jobId, itemId, status: newStatus, meta });
+    this._checkJobCompletion(jobId);
+  }
+
+  pauseJob(jobId) {
+    const job = this.jobs.get(jobId);
+    if (!job) return;
+    job.controls.paused = true;
+    job.status = JOB_STATUS.PAUSED;
+    this.emit('jobPaused', { jobId });
+  }
+
+  resumeJob(jobId) {
+    const job = this.jobs.get(jobId);
+    if (!job) return;
+    job.controls.paused = false;
+    job.status = JOB_STATUS.PROCESSING;
+    this.emit('jobResumed', { jobId });
+  }
+
+  cancelJob(jobId) {
+    const job = this.jobs.get(jobId);
+    if (!job) return;
+    job.controls.cancelRequested = true;
+    job.status = JOB_STATUS.CANCELLED;
+    job.completedAt = new Date().toISOString();
+    this.emit('jobCancelled', { jobId });
+  }
+
+  _updateStats(job, oldStatus, newStatus) {
+    if (oldStatus === ITEM_STATUS.PENDING) job.stats.pending--;
+    else if (oldStatus === ITEM_STATUS.PROCESSING) job.stats.processing--;
+    else if (oldStatus === ITEM_STATUS.COMPLETED) job.stats.completed--;
+    else if (oldStatus === ITEM_STATUS.FAILED) job.stats.failed--;
+    else if (oldStatus === ITEM_STATUS.SKIPPED) job.stats.skipped--;
+
+    if (newStatus === ITEM_STATUS.PENDING) job.stats.pending++;
+    else if (newStatus === ITEM_STATUS.PROCESSING) job.stats.processing++;
+    else if (newStatus === ITEM_STATUS.COMPLETED) job.stats.completed++;
+    else if (newStatus === ITEM_STATUS.FAILED) job.stats.failed++;
+    else if (newStatus === ITEM_STATUS.SKIPPED) job.stats.skipped++;
+  }
+
+  _checkJobCompletion(jobId) {
+    const job = this.jobs.get(jobId);
+    if (!job) return;
+
+    const { pending, processing } = job.stats;
+    if (pending === 0 && processing === 0) {
+      job.completedAt = new Date().toISOString();
+      job.status = job.stats.failed > 0 ? JOB_STATUS.COMPLETED_WITH_ERRORS : JOB_STATUS.COMPLETED;
+      this.emit('jobCompleted', { jobId, stats: job.stats, status: job.status });
+    }
+  }
+
+  _getFilename(filePath) {
+    if (!filePath) return 'unknown';
+    return filePath.split('/').pop().split('\\').pop();
+  }
+}
+
+module.exports = {
+  BatchManager,
+  ITEM_STATUS,
+  JOB_STATUS
+};
