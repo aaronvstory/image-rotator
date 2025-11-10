@@ -75,6 +75,16 @@ router.get('/progress/:jobId', (req, res) => {
     return res.status(404).json({ error: 'Job not found' });
   }
 
+  // Security: restrict who can consume SSE progress
+  const appOrigin = req.app.get('APP_ORIGIN') || process.env.APP_ORIGIN;
+  if (appOrigin) {
+    const requestOrigin = req.get('origin');
+    if (requestOrigin && requestOrigin !== appOrigin) {
+      return res.status(403).json({ error: 'Forbidden origin for progress stream' });
+    }
+    res.setHeader('Access-Control-Allow-Origin', appOrigin);
+  }
+
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',

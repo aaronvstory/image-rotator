@@ -55,9 +55,14 @@ class BatchManager extends EventEmitter {
     const jobId = `batch_${Date.now()}_${uuidv4().slice(0, 8)}`;
     const now = new Date().toISOString();
     const mergedOptions = { ...this.defaultOptions, ...options };
-    // Clamp chunkSize to a sane minimum of 1
-    if (!Number.isFinite(mergedOptions.chunkSize) || mergedOptions.chunkSize < 1) {
-      mergedOptions.chunkSize = 1;
+
+    // Security/robustness: enforce sane chunkSize server-side to avoid hangs or DoS
+    const configuredChunkSize = Number(mergedOptions.chunkSize);
+    if (!Number.isFinite(configuredChunkSize) || configuredChunkSize <= 0) {
+      mergedOptions.chunkSize = this.defaultOptions.chunkSize;
+    } else {
+      const maxChunkSize = 500; // upper bound to avoid enormous bursts
+      mergedOptions.chunkSize = Math.max(1, Math.min(configuredChunkSize, maxChunkSize));
     }
 
     const queueItems = items.map((item, index) => ({
