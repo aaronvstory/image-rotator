@@ -10,18 +10,6 @@ class BatchSelection {
     this.onSelectionChange = null; // Callback when selection changes
   }
 
-  static generateItemId(index = 0) {
-    if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
-      return globalThis.crypto.randomUUID();
-    }
-    const randomPart = (globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function')
-      ? Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)))
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('')
-      : Math.random().toString(16).slice(2);
-    return `item_${Date.now()}_${index}_${randomPart}`;
-  }
-
   /**
    * Initialize with available image IDs
    * @param {Array<string>} imageIds
@@ -150,9 +138,9 @@ class BatchSelection {
    * @returns {Array} - Array of {id, path, filename} ready for batch API
    */
   getSelectedItems(images) {
-    const selectedIds = this.getSelectedIds();
+    const set = this.selectedIds;
     return images
-      .filter(img => selectedIds.includes(img.id ?? img.fullPath))
+      .filter(img => set.has(img.id ?? img.fullPath))
       .map((img, index) => ({
         id: img.id ?? img.fullPath,
         path: img.fullPath,

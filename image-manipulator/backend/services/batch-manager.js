@@ -4,7 +4,7 @@
  */
 
 const EventEmitter = require('events');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('node:crypto');
 
 const ITEM_STATUS = {
   PENDING: 'pending',
@@ -51,9 +51,14 @@ class BatchManager extends EventEmitter {
       throw new Error(`Batch size ${items.length} exceeds maximum ${this.maxQueueSize}`);
     }
 
-    const jobId = options.jobId || `batch_${Date.now()}_${uuidv4().slice(0, 8)}`;
+    // Always generate server-side job IDs; ignore any caller-supplied value
+    const jobId = `batch_${Date.now()}_${uuidv4().slice(0, 8)}`;
     const now = new Date().toISOString();
     const mergedOptions = { ...this.defaultOptions, ...options };
+    // Clamp chunkSize to a sane minimum of 1
+    if (!Number.isFinite(mergedOptions.chunkSize) || mergedOptions.chunkSize < 1) {
+      mergedOptions.chunkSize = 1;
+    }
 
     const queueItems = items.map((item, index) => ({
       id: item.id || `${jobId}_item_${index}`,

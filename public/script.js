@@ -18,6 +18,7 @@ class ImageManipulator {
         // Make OCR viewer globally accessible for copy buttons
         window.ocrViewer = this.ocrViewer;
 
+        this._batchStartInFlight = false;
         this.init();
     }
 
@@ -104,15 +105,32 @@ class ImageManipulator {
     }
 
     async startBatchOCR() {
+        if (this._batchStartInFlight) {
+            return;
+        }
+
         if (!this.batchSelection || !this.batchModal || !this.batchProgressClient) {
             this.showError('Batch processing modules not initialized yet. Please refresh and try again.');
             return;
         }
 
+        const startBtn = document.getElementById('startBatchOCRBtn');
+        this._batchStartInFlight = true;
+        if (startBtn) startBtn.disabled = true;
+
+        const resetState = () => {
+            this._batchStartInFlight = false;
+            if (startBtn) {
+                const selectedCount = this.batchSelection ? this.batchSelection.getSelectedCount() : 0;
+                startBtn.disabled = selectedCount === 0;
+            }
+        };
+
         const selectedItems = this.batchSelection.getSelectedItems(this.images);
 
         if (selectedItems.length === 0) {
             this.showError('No images selected');
+            resetState();
             return;
         }
 
@@ -159,6 +177,8 @@ class ImageManipulator {
         } catch (error) {
             console.error('Error starting batch OCR:', error);
             this.showError('Failed to start batch OCR');
+        } finally {
+            resetState();
         }
     }
 

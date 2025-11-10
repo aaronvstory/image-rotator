@@ -78,8 +78,7 @@ router.get('/progress/:jobId', (req, res) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-    'Access-Control-Allow-Origin': '*'
+    Connection: 'keep-alive'
   });
 
   const snapshot = () => {
@@ -187,5 +186,4 @@ router.delete('/job/:jobId', (req, res) => {
 });
 
 module.exports = router;
-
 
