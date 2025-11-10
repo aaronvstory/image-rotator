@@ -910,7 +910,7 @@ app.get("/api/ocr/export/:jobId", async (req, res) => {
   try {
     const { jobId } = req.params;
     let job = batchJobs.get(jobId);
-    
+
     // If not in memory, try to load from persisted file
     if (!job) {
       try {

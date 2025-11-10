@@ -223,8 +223,8 @@ body {
     width: 120px;
     height: 6px;
     border-radius: 3px;
-    background: linear-gradient(to right, 
-        #374151 0%, 
+    background: linear-gradient(to right,
+        #374151 0%,
         #374151 100%);
     outline: none;
     -webkit-appearance: none;
