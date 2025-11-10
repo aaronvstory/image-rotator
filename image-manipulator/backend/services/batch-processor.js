@@ -12,7 +12,7 @@ class BatchProcessor {
   constructor(batchManager) {
     this.batchManager = batchManager;
     this.processingJobs = new Set();
-    this.ocrProvider = null;
+    this.ocrProviders = new Map();
     this.ocrProviderFactory = () => new OCRProvider();
   }
 
@@ -22,13 +22,14 @@ class BatchProcessor {
     }
 
     this.processingJobs.add(jobId);
-    this.ocrProvider = this.ocrProviderFactory();
+    const provider = this.ocrProviderFactory();
+    this.ocrProviders.set(jobId, provider);
 
     try {
       const job = this.batchManager.getJob(jobId);
       if (!job) throw new Error(`Job ${jobId} not found`);
 
-      await this.ocrProvider.initialize();
+      await provider.initialize();
       this.batchManager.startJob(jobId);
 
       while (true) {
@@ -53,17 +54,18 @@ class BatchProcessor {
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
     } finally {
-      if (this.ocrProvider) {
+      const storedProvider = this.ocrProviders.get(jobId);
+      if (storedProvider) {
         try {
-          if (typeof this.ocrProvider.shutdown === 'function') {
-            await this.ocrProvider.shutdown();
-          } else if (typeof this.ocrProvider.dispose === 'function') {
-            await this.ocrProvider.dispose();
+          if (typeof storedProvider.shutdown === 'function') {
+            await storedProvider.shutdown();
+          } else if (typeof storedProvider.dispose === 'function') {
+            await storedProvider.dispose();
           }
         } catch (error) {
           console.warn('Error shutting down OCR provider', error);
         } finally {
-          this.ocrProvider = null;
+          this.ocrProviders.delete(jobId);
         }
       }
       this.processingJobs.delete(jobId);
@@ -76,7 +78,7 @@ class BatchProcessor {
 
     for (const item of chunk) {
       const currentJob = this.batchManager.getJob(jobId);
-      if (!currentJob || currentJob.controls.cancelRequested || currentJob.controls.paused) break;
+      if (!currentJob || currentJob.controls.cancelRequested) break;
 
       try {
         await this.processItem(jobId, item, job.options);
@@ -87,8 +89,9 @@ class BatchProcessor {
   }
 
   async processItem(jobId, item, options) {
-    if (!this.ocrProvider) {
-      throw new Error('OCR provider is not initialized');
+    const provider = this.ocrProviders.get(jobId);
+    if (!provider) {
+      throw new Error(`OCR provider is not initialized for job: ${jobId}`);
     }
     try {
       this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.PROCESSING);
@@ -101,7 +104,7 @@ class BatchProcessor {
         return;
       }
 
-      const ocrResult = await this.ocrProvider.processImage(item.path, options);
+      const ocrResult = await provider.processImage(item.path, options);
 
       if (ocrResult.skipped) {
         this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.SKIPPED, {
