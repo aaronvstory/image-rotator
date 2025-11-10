@@ -148,6 +148,17 @@ class OCRViewer {
     const container = document.getElementById('ocrFormattedData');
     const data = this.currentData;
 
+    const confidenceValue = (typeof data?.confidence === 'number' && Number.isFinite(data.confidence)) ? data.confidence : 0;
+    const confidenceDisplay = `${(confidenceValue * 100).toFixed(0)}%`;
+
+    let processedDisplay = 'N/A';
+    if (data && data.processedAt) {
+      const processedDate = new Date(data.processedAt);
+      if (!Number.isNaN(processedDate.getTime())) {
+        processedDisplay = processedDate.toLocaleString();
+      }
+    }
+
     const html = `
       <button class="copy-all-btn">
         <i class="fas fa-copy"></i>
@@ -280,7 +291,7 @@ class OCRViewer {
         <h3>Metadata</h3>
         <div class="field">
           <div class="field-label">Confidence:</div>
-          <div class="field-value">${(data.confidence * 100).toFixed(0)}%</div>
+          <div class="field-value">${confidenceDisplay}</div>
         </div>
         <div class="field">
           <div class="field-label">Model Used:</div>
@@ -288,7 +299,7 @@ class OCRViewer {
         </div>
         <div class="field">
           <div class="field-label">Processed:</div>
-          <div class="field-value">${new Date(data.processedAt).toLocaleString()}</div>
+          <div class="field-value">${processedDisplay}</div>
         </div>
         <div class="field">
           <div class="field-label">Cost:</div>

@@ -9,6 +9,7 @@ class BatchModal {
     this.currentJobId = null;
     this.progressClient = null;
     this.startTime = null;
+    this.isComplete = false;
     this.createModal();
   }
 
@@ -192,7 +193,6 @@ class BatchModal {
    */
   open(jobId, progressClient) {
     this.currentJobId = jobId;
-    this.progressClient = progressClient;
     this.startTime = Date.now();
     this.isComplete = false;
 
@@ -204,11 +204,17 @@ class BatchModal {
     this.reset();
 
     // Setup progress tracking
-    this.progressClient.connect(jobId, {
-      onUpdate: (data) => this.handleUpdate(data),
-      onComplete: (data) => this.handleComplete(data),
-      onError: (error) => this.handleError(error)
-    });
+    if (progressClient && typeof progressClient.connect === 'function') {
+      this.progressClient = progressClient;
+      this.progressClient.connect(jobId, {
+        onUpdate: (data) => this.handleUpdate(data),
+        onComplete: (data) => this.handleComplete(data),
+        onError: (error) => this.handleError(error)
+      });
+    } else {
+      this.progressClient = null;
+      console.error('BatchModal: invalid progress client supplied; skipping progress tracking.');
+    }
   }
 
   /**

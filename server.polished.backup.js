@@ -2,12 +2,13 @@
 require("dotenv").config();
 const express = require("express");
 const sharp = require("sharp");
-const fs = require("fs").promises;\nconst { constants } = require("fs");
+const fs = require("fs").promises;
+const { constants } = require("fs");
 const path = require("path");
 
 const app = express();
 // Allow custom port
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 
 // Serve static files from public directory
 app.use(express.static("public"));
@@ -858,6 +859,20 @@ app.get("/api/ocr/health", async (req, res) => {
 // This operates on the underlying image path, not strictly bound to a job, but accepts jobId for audit trail
 app.delete("/api/ocr/result/:jobId/*", async (req, res) => {
   try {
+    const { jobId } = req.params;
+    const user = req.user;
+
+    if (user) {
+      const ownsJob = Array.isArray(user.jobIds) && user.jobIds.includes(jobId);
+      const isAdmin = user.role === "admin" || user.isAdmin === true;
+      if (!ownsJob && !isAdmin) {
+        return res.status(403).json({ error: "Not authorized to modify this job" });
+      }
+    } else {
+      // This service currently runs as a single-user/local-only utility. Do not expose externally without auth.
+      console.warn("DELETE /api/ocr/result invoked without authenticated user. Ensure the server runs in a trusted environment.");
+    }
+
     const encodedPath = req.params[0];
     const relativeImagePath = decodeURIComponent(encodedPath);
     const fullPath = path.join(IMAGE_DIR, relativeImagePath);
@@ -875,7 +890,7 @@ app.delete("/api/ocr/result/:jobId/*", async (req, res) => {
     }
     // Also update most recent job record removing prior entry so UI doesn't show stale data
     try {
-      const file = path.join(JOBS_DIR, `${req.params.jobId}.json`);
+      const file = path.join(JOBS_DIR, `${jobId}.json`);
       const data = JSON.parse(await fs.readFile(file, "utf8"));
       if (Array.isArray(data.results)) {
         data.results = data.results.filter(

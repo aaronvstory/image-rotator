@@ -179,9 +179,13 @@ app.post('/api/ocr-results/save', async (req,res)=>{ const {path:fp,content}=req
 
 app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
   if (!IMAGE_DIR) return res.json({ success: true, has: false });
-  const full = path.join(IMAGE_DIR, req.params.imagePath);
+  const rootDir = path.resolve(path.normalize(IMAGE_DIR));
+  const requestedPath = path.resolve(path.join(IMAGE_DIR, req.params.imagePath || ''));
+  if (!isPathInside(requestedPath, rootDir)) {
+    return res.status(403).json({ success: false, error: 'Image not within configured directory' });
+  }
   try {
-    const files = await checkResultFiles(full);
+    const files = await checkResultFiles(requestedPath);
     res.json({ success: true, has: files.json || files.txt });
   } catch (error) {
     console.error('Error checking OCR files', error);

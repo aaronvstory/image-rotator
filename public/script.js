@@ -132,6 +132,22 @@ class ImageManipulator {
                 })
             });
 
+            if (!response.ok) {
+                let serverMessage = '';
+                try {
+                    const errorPayload = await response.json();
+                    serverMessage = errorPayload?.error || JSON.stringify(errorPayload);
+                } catch (parseError) {
+                    try {
+                        serverMessage = await response.text();
+                    } catch {}
+                }
+                const message = `Failed to start batch OCR (HTTP ${response.status}): ${serverMessage || response.statusText || 'Unknown error'}`;
+                console.error(message);
+                this.showError(message);
+                return;
+            }
+
             const data = await response.json();
 
             if (data.success) {
@@ -243,7 +259,7 @@ class ImageManipulator {
     async setDirectory(directoryPath) {
         try {
             this.showLoading();
-            
+
             const response = await fetch('/api/directory', {
                 method: 'POST',
                 headers: {
@@ -277,10 +293,10 @@ class ImageManipulator {
     async loadImages() {
         try {
             this.showLoading();
-            
+
             const response = await fetch('/api/images');
             const data = await response.json();
-            
+
             if (data.success) {
                 this.images = Array.isArray(data.images) ? data.images : [];
                 this.currentDirectory = data.directory;
@@ -339,7 +355,7 @@ class ImageManipulator {
             textSpan.textContent = message;
         }
         errorEl.classList.remove('hidden');
-        
+
         // Auto-hide after 5 seconds
         setTimeout(() => {
             errorEl.classList.add('hidden');
@@ -372,12 +388,12 @@ class ImageManipulator {
             opacity: 0;
             transition: opacity 0.3s ease;
         `;
-        
+
         document.body.appendChild(successEl);
-        
+
         // Animate in
         setTimeout(() => successEl.style.opacity = '1', 10);
-        
+
         // Remove after 3 seconds
         setTimeout(() => {
             successEl.style.opacity = '0';
@@ -502,14 +518,14 @@ class ImageManipulator {
     async rotateImage(index, degrees) {
         const image = this.images[index];
         const card = document.querySelector(`[data-index="${index}"]`);
-        
+
         if (!image || !card) return;
 
         // Check rotation cooldown for this specific image
         const imageKey = image.relativePath;
         const now = Date.now();
         const lastRotation = this.lastRotationTime[imageKey];
-        
+
         if (lastRotation && (now - lastRotation) < this.rotationCooldown) {
             const remainingTime = Math.ceil((this.rotationCooldown - (now - lastRotation)) / 1000);
             this.showThrottleMessage(card, remainingTime);
@@ -525,7 +541,7 @@ class ImageManipulator {
         try {
             // Add processing state
             card.classList.add('processing');
-            
+
             // Disable all buttons in this card
             const buttons = card.querySelectorAll('.btn-rotate');
             buttons.forEach(btn => btn.disabled = true);
@@ -533,7 +549,7 @@ class ImageManipulator {
             // Create abort controller for request timeout
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-            
+
             const response = await fetch('/api/rotate', {
                 method: 'POST',
                 headers: {
@@ -545,7 +561,7 @@ class ImageManipulator {
                 }),
                 signal: controller.signal
             });
-            
+
             clearTimeout(timeoutId);
 
             const result = await response.json();
@@ -553,17 +569,17 @@ class ImageManipulator {
             if (result.success) {
                 // Record the rotation time for this image
                 this.lastRotationTime[imageKey] = now;
-                
+
                 // Show success feedback immediately
                 this.showRotationFeedback(card, degrees);
-                
+
                 // Wait a moment before updating thumbnail to ensure file is fully written
                 await new Promise(resolve => setTimeout(resolve, 200));
-                
+
                 // Update thumbnail with cache-busting timestamp
                 const img = card.querySelector('img');
                 const thumbnailUrl = `/api/thumbnail/${encodeURIComponent(image.relativePath)}?t=${Date.now()}`;
-                
+
                 // Use a Promise to handle image loading
                 await new Promise((resolve, reject) => {
                     const tempImg = new Image();
@@ -578,7 +594,7 @@ class ImageManipulator {
                     };
                     tempImg.src = thumbnailUrl;
                 });
-                
+
             } else {
                 // Handle different types of server errors
                 const errorMsg = result.error || 'Unknown error';
@@ -594,7 +610,7 @@ class ImageManipulator {
             }
         } catch (error) {
             console.error('Error rotating image:', error);
-            
+
             // Handle different types of network/fetch errors
             if (error.name === 'TypeError' && error.message.includes('fetch')) {
                 this.showError('Network error - please check your connection');
@@ -608,7 +624,7 @@ class ImageManipulator {
             setTimeout(() => {
                 // Remove processing state
                 card.classList.remove('processing');
-                
+
                 // Re-enable buttons
                 const buttons = card.querySelectorAll('.btn-rotate');
                 buttons.forEach(btn => btn.disabled = false);
@@ -637,13 +653,13 @@ class ImageManipulator {
             opacity: 0;
             transition: opacity 0.3s ease;
         `;
-        
+
         card.style.position = 'relative';
         card.appendChild(feedback);
-        
+
         // Animate in
         setTimeout(() => feedback.style.opacity = '1', 10);
-        
+
         // Remove after delay
         setTimeout(() => {
             feedback.style.opacity = '0';
@@ -676,13 +692,13 @@ class ImageManipulator {
             opacity: 0;
             transition: opacity 0.3s ease;
         `;
-        
+
         card.style.position = 'relative';
         card.appendChild(throttleMsg);
-        
+
         // Animate in
         setTimeout(() => throttleMsg.style.opacity = '1', 10);
-        
+
         // Remove after delay
         setTimeout(() => {
             throttleMsg.style.opacity = '0';
@@ -704,9 +720,9 @@ class ImageManipulator {
             // Create hover preview tooltip
             previewElement = document.createElement('div');
             previewElement.className = 'hover-preview-tooltip';
-            
+
             const fullImageUrl = `/api/preview/${encodeURIComponent(image.relativePath)}?t=${Date.now()}`;
-            
+
             previewElement.innerHTML = `
                 <div class="preview-header-small">
                     <span class="preview-filename">${escapeHtml(image.filename)}</span>
@@ -715,29 +731,29 @@ class ImageManipulator {
                     <div class="preview-loading-small">
                         <i class="fas fa-spinner fa-spin"></i>
                     </div>
-                    <img class="preview-image-hover" src="${fullImageUrl}" alt="${escapeHtml(image.filename)}" 
+                    <img class="preview-image-hover" src="${fullImageUrl}" alt="${escapeHtml(image.filename)}"
                          onload="this.parentNode.querySelector('.preview-loading-small').style.display='none'; this.style.display='block';"
                          onerror="this.parentNode.innerHTML='<div class=\\'preview-error-small\\'>Failed to load</div>';">
                 </div>
             `;
-            
+
             // Position the preview optimally on screen
             const rect = card.getBoundingClientRect();
             const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
             const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
-            
+
             // Preview dimensions (approximate)
             const previewWidth = 650;
             const previewHeight = 500;
-            
+
             let left, top;
-            
+
             // Try to position to the right first
             if (rect.right + previewWidth + 20 < windowWidth) {
                 left = rect.right + scrollLeft + 15;
-            } 
+            }
             // If not enough space on right, try left
             else if (rect.left - previewWidth - 20 > 0) {
                 left = rect.left + scrollLeft - previewWidth - 15;
@@ -746,24 +762,24 @@ class ImageManipulator {
             else {
                 left = Math.max(10, (windowWidth - previewWidth) / 2 + scrollLeft);
             }
-            
+
             // Vertical positioning - try to center on the card
             top = rect.top + scrollTop - (previewHeight - rect.height) / 2;
-            
+
             // Keep preview within viewport
             if (top < scrollTop + 10) {
                 top = scrollTop + 10;
             } else if (top + previewHeight > scrollTop + windowHeight - 10) {
                 top = scrollTop + windowHeight - previewHeight - 10;
             }
-            
+
             previewElement.style.position = 'absolute';
             previewElement.style.left = left + 'px';
             previewElement.style.top = top + 'px';
             previewElement.style.zIndex = '10000';
-            
+
             document.body.appendChild(previewElement);
-            
+
             // Animate in
             setTimeout(() => previewElement.classList.add('visible'), 10);
         };
@@ -840,7 +856,7 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         window.imageManipulator.loadImages();
     }
-    
+
     // Close preview with Escape key (for any hover previews)
     if (e.key === 'Escape') {
         const previewElements = document.querySelectorAll('.hover-preview-tooltip.visible');

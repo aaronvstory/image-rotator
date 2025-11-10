@@ -20,13 +20,23 @@ class BatchProgress {
     // Close existing connection
     this.disconnect();
 
-    this.jobId = jobId;
+    const hasValidId = typeof jobId === 'string' && jobId.trim().length > 0;
+    if (!hasValidId) {
+      const message = 'BatchProgress: invalid jobId provided to connect()';
+      console.error(message, { jobId });
+      if (typeof callbacks.onError === 'function') {
+        callbacks.onError(message);
+      }
+      return;
+    }
+
+    this.jobId = jobId.trim();
     this.onUpdate = callbacks.onUpdate;
     this.onComplete = callbacks.onComplete;
     this.onError = callbacks.onError;
 
     // Create SSE connection
-    const url = `/api/batch/progress/${jobId}?includeItems=true`;
+    const url = `/api/batch/progress/${encodeURIComponent(this.jobId)}?includeItems=true`;
     this.eventSource = new EventSource(url);
 
     // Handle job updates (server emits "job-update" events)
@@ -76,7 +86,7 @@ class BatchProgress {
     if (!this.jobId) return;
 
     try {
-      const response = await fetch(`/api/batch/status/${this.jobId}?includeItems=true`);
+      const response = await fetch(`/api/batch/status/${encodeURIComponent(this.jobId)}?includeItems=true`);
       const data = await response.json();
 
       if (data.status === 'completed' || data.status === 'completed_with_errors') {
@@ -146,9 +156,17 @@ class BatchProgress {
     if (!this.jobId) return;
 
     try {
-      const response = await fetch(`/api/batch/pause/${this.jobId}`, {
+      const response = await fetch(`/api/batch/pause/${encodeURIComponent(this.jobId)}`, {
         method: 'POST'
       });
+      if (!response.ok) {
+        let detail = '';
+        try {
+          detail = await response.text();
+        } catch {}
+        console.error(`Error pausing job: HTTP ${response.status}`, detail || response.statusText);
+        return false;
+      }
       const data = await response.json();
       return data.success;
     } catch (error) {
@@ -164,9 +182,17 @@ class BatchProgress {
     if (!this.jobId) return;
 
     try {
-      const response = await fetch(`/api/batch/resume/${this.jobId}`, {
+      const response = await fetch(`/api/batch/resume/${encodeURIComponent(this.jobId)}`, {
         method: 'POST'
       });
+      if (!response.ok) {
+        let detail = '';
+        try {
+          detail = await response.text();
+        } catch {}
+        console.error(`Error resuming job: HTTP ${response.status}`, detail || response.statusText);
+        return false;
+      }
       const data = await response.json();
       return data.success;
     } catch (error) {
@@ -182,9 +208,17 @@ class BatchProgress {
     if (!this.jobId) return;
 
     try {
-      const response = await fetch(`/api/batch/cancel/${this.jobId}`, {
+      const response = await fetch(`/api/batch/cancel/${encodeURIComponent(this.jobId)}`, {
         method: 'POST'
       });
+      if (!response.ok) {
+        let detail = '';
+        try {
+          detail = await response.text();
+        } catch {}
+        console.error(`Error cancelling job: HTTP ${response.status}`, detail || response.statusText);
+        return false;
+      }
       const data = await response.json();
 
       if (data.success) {
