@@ -10,7 +10,7 @@
   "scripts": {
     "start": "electron .",
     "server": "node server.js",
-    "dev": "NODE_ENV=development electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
@@ -37,6 +37,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "electron": "^39.1.0",
     "electron-builder": "^26.0.12",
     "nodemon": "^3.0.2"

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Manipulator - Bulk Photo Management</title>
+    <title>Image Manipulator - WSL Feature Build</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -15,7 +15,7 @@
             <div class="header-content">
                 <h1>
                     <i class="fas fa-sync-alt"></i>
-                    Image Manipulator
+                    Image Manipulator <span class="build-badge">WSL Build</span>
                 </h1>
                 <div class="stats">
                     <span id="imageCount" class="stat-badge">
@@ -50,7 +50,7 @@
                         <span id="currentFolder">No folder selected</span>
                     </div>
                 </div>
-                
+
                 <div class="right-controls">
                     <div class="grid-controls">
                         <label for="gridSize" class="grid-label">
@@ -67,11 +67,11 @@
                         </label>
                         <input type="range" id="hoverDelay" class="hover-slider" min="0" max="5000" value="2000" step="250">
                         <span id="hoverDelayValue" class="hover-value">2.0s</span>
-                        <input type="number" id="hoverDelayInput" class="hover-input" min="0" max="5" step="0.25" value="2.0">
+                        <input type="number" id="hoverDelayInput" class="hover-input" min="0" max="5" step="0.25" value="2.0" aria-label="Hover delay in seconds">
                     </div>
                 </div>
             </div>
-            
+
             <div class="help-section">
                 <div class="help-text">
                     <i class="fas fa-info-circle"></i>
@@ -132,7 +132,7 @@
                             <option value="100">100</option>
                             <option value="custom">Custom...</option>
                         </select>
-                        <input type="number" id="customCount" class="custom-count-input hidden" min="1" placeholder="Enter count">
+                        <input type="number" id="customCount" class="custom-count-input hidden" min="1" placeholder="Enter count" aria-label="Custom selection count">
                         <button id="selectNextBtn" class="btn btn-secondary btn-sm">
                             <i class="fas fa-arrow-right"></i>
                             Go
@@ -195,7 +195,7 @@
                     <i class="fas fa-file-alt"></i>
                     <span id="ocrViewerFilename">OCR Results</span>
                 </h2>
-                <button id="ocrViewerClose" class="ocr-viewer-close">
+                <button id="ocrViewerClose" class="ocr-viewer-close" aria-label="Close OCR viewer">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -219,10 +219,10 @@
                         <div id="ocrFormattedData" class="ocr-formatted-display"></div>
                     </div>
                     <div id="ocrJsonView" class="ocr-tab-content">
-                        <textarea id="ocrJsonEditor" class="ocr-editor" spellcheck="false"></textarea>
+                        <textarea id="ocrJsonEditor" class="ocr-editor" spellcheck="false" aria-label="OCR JSON content"></textarea>
                     </div>
                     <div id="ocrRawView" class="ocr-tab-content">
-                        <textarea id="ocrRawEditor" class="ocr-editor" spellcheck="false"></textarea>
+                        <textarea id="ocrRawEditor" class="ocr-editor" spellcheck="false" aria-label="OCR raw text"></textarea>
                     </div>
                 </div>
             </div>
@@ -247,3 +247,4 @@
     <script src="js/enhanced-features.js"></script>
 </body>
 </html>
+

@@ -55,6 +55,18 @@ body {
     gap: 0.5rem;
 }
 
+.build-badge {
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.25rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid rgba(147, 197, 253, 0.4);
+    background: rgba(59, 130, 246, 0.18);
+    color: #bfdbfe;
+    -webkit-text-fill-color: initial;
+    letter-spacing: 0.02em;
+}
+
 .stats {
     display: flex;
     gap: 1rem;
