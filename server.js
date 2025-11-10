@@ -21,6 +21,7 @@ app.use(express.static('public'));
 app.use(express.json());
 
 let IMAGE_DIR = process.env.IMAGE_DIR || null;
+app.set('IMAGE_DIR', IMAGE_DIR);
 const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp'];
 
 function isImageFile(filename) { return SUPPORTED_EXTENSIONS.includes(path.extname(filename).toLowerCase()); }
@@ -88,7 +89,7 @@ function validateOCRPath(fp) {
 
 app.get('/api/directory', (req,res)=> res.json({success:true,directory:IMAGE_DIR}));
 
-app.post('/api/directory', async (req,res)=>{ const {directory}=req.body||{}; if(!directory) return res.status(400).json({success:false,error:'Directory path is required'}); try{ await fs.access(directory); const s=await fs.stat(directory); if(!s.isDirectory()) return res.status(400).json({success:false,error:'Path is not a directory'}); IMAGE_DIR=directory; res.json({success:true,directory:IMAGE_DIR}); } catch { return res.status(400).json({success:false,error:'Directory does not exist or is not accessible'}); }});
+app.post('/api/directory', async (req,res)=>{ const {directory}=req.body||{}; if(!directory) return res.status(400).json({success:false,error:'Directory path is required'}); try{ await fs.access(directory); const s=await fs.stat(directory); if(!s.isDirectory()) return res.status(400).json({success:false,error:'Path is not a directory'}); IMAGE_DIR=directory; app.set('IMAGE_DIR', IMAGE_DIR); res.json({success:true,directory:IMAGE_DIR}); } catch { return res.status(400).json({success:false,error:'Directory does not exist or is not accessible'}); }});
 
 app.get('/api/images', async (req,res)=>{ if(!IMAGE_DIR) return res.json({success:true,count:0,images:[],directory:null}); const images=await scanImagesRecursively(IMAGE_DIR); res.json({success:true,count:images.length,images,directory:IMAGE_DIR}); });
 
@@ -117,3 +118,4 @@ app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
 app.use('/api/batch', batchRoutes);
 
 app.listen(PORT,'0.0.0.0',()=>{ console.log(`\nWSL Functional Base server running at http://localhost:${PORT}`); console.log('Rollback tag: v1-polished-ui'); });
+
