@@ -2,6 +2,8 @@
 
 A powerful desktop application for bulk image rotation with integrated OCR capabilities for driver license processing.
 
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/aaronvstory/image-rotator?utm_source=oss&utm_medium=github&utm_campaign=aaronvstory%2Fimage-rotator&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
 ## Features
 
 ✅ **Image Management**
