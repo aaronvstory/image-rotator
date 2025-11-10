@@ -160,9 +160,20 @@ class BatchManager extends EventEmitter {
     if (oldStatus === newStatus) return;
 
     item.status = newStatus;
-    item.completedAt = [ITEM_STATUS.COMPLETED, ITEM_STATUS.FAILED, ITEM_STATUS.SKIPPED].includes(newStatus)
-      ? new Date().toISOString()
-      : item.completedAt;
+    if (newStatus === ITEM_STATUS.PENDING) {
+      item.startedAt = null;
+      item.completedAt = null;
+      if (!meta.preserveError) item.error = null;
+      if (!meta.preserveResult) {
+        item.result = null;
+        item.savedFiles = null;
+      }
+    }
+
+    if ([ITEM_STATUS.COMPLETED, ITEM_STATUS.FAILED, ITEM_STATUS.SKIPPED].includes(newStatus)) {
+      item.completedAt = new Date().toISOString();
+    }
+
     if (meta.error) item.error = meta.error;
     if (meta.result) item.result = meta.result;
     if (meta.savedFiles) item.savedFiles = meta.savedFiles;
@@ -192,9 +203,21 @@ class BatchManager extends EventEmitter {
   cancelJob(jobId) {
     const job = this.jobs.get(jobId);
     if (!job) return;
+    if (job.status === JOB_STATUS.CANCELLED) return;
+
     job.controls.cancelRequested = true;
     job.status = JOB_STATUS.CANCELLED;
     job.completedAt = new Date().toISOString();
+
+    for (const item of job.queue) {
+      if ([ITEM_STATUS.COMPLETED, ITEM_STATUS.SKIPPED, ITEM_STATUS.FAILED].includes(item.status)) {
+        continue;
+      }
+      this.updateItemStatus(jobId, item.id, ITEM_STATUS.FAILED, {
+        error: 'Cancelled by user'
+      });
+    }
+
     this._scheduleCleanup(jobId);
     this.emit('jobCancelled', { jobId });
   }
@@ -216,6 +239,7 @@ class BatchManager extends EventEmitter {
   _checkJobCompletion(jobId) {
     const job = this.jobs.get(jobId);
     if (!job) return;
+    if (job.status === JOB_STATUS.CANCELLED) return;
 
     const { pending, processing } = job.stats;
     if (pending === 0 && processing === 0) {
@@ -237,6 +261,7 @@ class BatchManager extends EventEmitter {
     const timer = setTimeout(() => {
       this.deleteJob(jobId);
     }, this.jobTtlMs);
+    if (typeof timer.unref === 'function') timer.unref();
     this.cleanupTimers.set(jobId, timer);
   }
 

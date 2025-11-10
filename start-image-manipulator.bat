@@ -74,12 +74,12 @@ timeout /t 3 /nobreak >nul
 :: Launch browser with the application
 echo.
 echo Launching Image Manipulator in browser...
-echo URL: http://localhost:3000
+echo URL: http://localhost:3001
 
 if "%CHROME_PATH%"=="start" (
-    start "" "http://localhost:3000"
+    start "" "http://localhost:3001"
 ) else (
-    start "" "%CHROME_PATH%" "http://localhost:3000" --new-window
+    start "" "%CHROME_PATH%" "http://localhost:3001" --new-window
 )
 
 echo.

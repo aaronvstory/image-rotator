@@ -152,7 +152,7 @@ class BatchSelection {
   getSelectedItems(images) {
     const selectedIds = this.getSelectedIds();
     return images
-      .filter(img => selectedIds.includes(img.fullPath))
+      .filter(img => selectedIds.includes(img.id ?? img.fullPath))
       .map((img, index) => ({
         id: img.id || BatchSelection.generateItemId(index),
         path: img.fullPath,

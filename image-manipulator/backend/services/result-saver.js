@@ -24,9 +24,19 @@ async function writeFileAtomic(filePath, content) {
 }
 
 function buildPaths(imagePath, suffixes) {
-  const ext = path.extname(imagePath);
-  const base = ext ? imagePath.slice(0, -ext.length) : imagePath;
-  return suffixes.map((suffix) => path.normalize(`${base}${suffix}`));
+  const normalizedOriginal = path.normalize(imagePath);
+  const ext = path.extname(normalizedOriginal);
+  const base = ext ? normalizedOriginal.slice(0, -ext.length) : normalizedOriginal;
+  const candidates = new Set();
+
+  suffixes.forEach((suffix) => {
+    candidates.add(path.normalize(`${base}${suffix}`));
+    if (suffix.startsWith('.ocr')) {
+      candidates.add(path.normalize(`${normalizedOriginal}${suffix}`));
+    }
+  });
+
+  return Array.from(candidates);
 }
 
 async function saveJSONVariants(paths, data) {

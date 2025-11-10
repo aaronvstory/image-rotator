@@ -107,7 +107,7 @@ npm run dev
 ```bash
 npm run server
 ```
-Then open http://localhost:3000 in browser
+Then open http://localhost:3001 in browser
 
 ### Architecture
 - **Electron Main**: `electron-main.js` - Window management, IPC
@@ -123,7 +123,7 @@ Then open http://localhost:3000 in browser
 |----------|-------------|---------|
 | `OPENROUTER_API_KEY` | OpenRouter API key for OCR | Required for OCR |
 | `OCR_CONCURRENCY` | Parallel OCR workers | 1 (max: 5) |
-| `PORT` | Server port | 3000 |
+| `PORT` | Server port | 3001 |
 | `NODE_ENV` | Environment (development/production) | production |
 
 ### Build Configuration

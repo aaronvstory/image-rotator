@@ -11,8 +11,7 @@ const { OCRProvider } = require('./ocr-provider');
 class BatchProcessor {
   constructor(batchManager) {
     this.batchManager = batchManager;
-    this.processingJobs = new Set();
-    this.ocrProviders = new Map();
+    this.processingJobs = new Map();
     this.ocrProviderFactory = () => new OCRProvider();
   }
 
@@ -21,14 +20,16 @@ class BatchProcessor {
       throw new Error(`Job ${jobId} is already being processed`);
     }
 
-    this.processingJobs.add(jobId);
-    const provider = this.ocrProviderFactory();
-    this.ocrProviders.set(jobId, provider);
+    const runtime = {
+      provider: this.ocrProviderFactory()
+    };
+    this.processingJobs.set(jobId, runtime);
 
     try {
       const job = this.batchManager.getJob(jobId);
       if (!job) throw new Error(`Job ${jobId} not found`);
 
+      const provider = runtime.provider;
       await provider.initialize();
       this.batchManager.startJob(jobId);
 
@@ -54,18 +55,17 @@ class BatchProcessor {
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
     } finally {
-      const storedProvider = this.ocrProviders.get(jobId);
-      if (storedProvider) {
+      const storedRuntime = this.processingJobs.get(jobId);
+      const provider = storedRuntime?.provider;
+      if (provider) {
         try {
-          if (typeof storedProvider.shutdown === 'function') {
-            await storedProvider.shutdown();
-          } else if (typeof storedProvider.dispose === 'function') {
-            await storedProvider.dispose();
+          if (typeof provider.shutdown === 'function') {
+            await provider.shutdown();
+          } else if (typeof provider.dispose === 'function') {
+            await provider.dispose();
           }
         } catch (error) {
           console.warn('Error shutting down OCR provider', error);
-        } finally {
-          this.ocrProviders.delete(jobId);
         }
       }
       this.processingJobs.delete(jobId);
@@ -76,9 +76,14 @@ class BatchProcessor {
     const job = this.batchManager.getJob(jobId);
     if (!job) return;
 
-    for (const item of chunk) {
+    for (let index = 0; index < chunk.length; index++) {
+      const item = chunk[index];
       const currentJob = this.batchManager.getJob(jobId);
       if (!currentJob || currentJob.controls.cancelRequested) break;
+      if (currentJob.controls.paused) {
+        this._requeueItems(jobId, chunk.slice(index));
+        break;
+      }
 
       try {
         await this.processItem(jobId, item, job.options);
@@ -89,11 +94,13 @@ class BatchProcessor {
   }
 
   async processItem(jobId, item, options) {
-    const provider = this.ocrProviders.get(jobId);
-    if (!provider) {
-      throw new Error(`OCR provider is not initialized for job: ${jobId}`);
-    }
     try {
+      const runtime = this.processingJobs.get(jobId);
+      const provider = runtime?.provider;
+      if (!provider) {
+        throw new Error(`OCR provider is not initialized for job: ${jobId}`);
+      }
+
       this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.PROCESSING);
 
       const skip = await shouldSkipImage(item.path, options);
@@ -138,6 +145,15 @@ class BatchProcessor {
         });
       }
     }
+  }
+
+  _requeueItems(jobId, items) {
+    if (!items || items.length === 0) return;
+    items.forEach((item) => {
+      this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.PENDING, {
+        retries: item.retries ?? 0
+      });
+    });
   }
 }
 

@@ -12,6 +12,7 @@ const path = require('path');
 const batchRoutes = require('./image-manipulator/backend/routes/batch');
 const {
   checkResultFiles,
+  getResultFileCandidates,
   VALID_RESULT_SUFFIXES
 } = require('./image-manipulator/backend/services/skip-detector');
 const { writeFileAtomic } = require('./image-manipulator/backend/services/result-saver');
@@ -105,6 +106,21 @@ function validateOCRPath(fp) {
   return { valid: true, path: abs };
 }
 
+function resolveImagePath(imagePath) {
+  if (!IMAGE_DIR) return null;
+  const root = path.resolve(path.normalize(IMAGE_DIR));
+  const abs = path.resolve(path.normalize(imagePath));
+  if (!isPathInside(abs, root)) {
+    return null;
+  }
+  return abs;
+}
+
+function listCandidatePaths(imagePath, type) {
+  const candidates = getResultFileCandidates(imagePath);
+  return type === 'txt' ? candidates.txt : candidates.json;
+}
+
 app.get('/api/directory', (req,res)=> res.json({success:true,directory:IMAGE_DIR}));
 
 app.post('/api/directory', async (req,res)=>{ const {directory}=req.body||{}; if(!directory) return res.status(400).json({success:false,error:'Directory path is required'}); try{ await fs.access(directory); const s=await fs.stat(directory); if(!s.isDirectory()) return res.status(400).json({success:false,error:'Path is not a directory'}); IMAGE_DIR=directory; app.set('IMAGE_DIR', IMAGE_DIR); res.json({success:true,directory:IMAGE_DIR}); } catch { return res.status(400).json({success:false,error:'Directory does not exist or is not accessible'}); }});
@@ -174,9 +190,104 @@ app.post('/api/rotate', async (req, res) => {
   }
 });
 
-app.get('/api/ocr-results', async (req,res)=>{ const filePath=req.query.path; const isRaw=req.query.raw==='true'; if(!filePath) return res.status(400).json({error:'Path parameter required'}); const v=validateOCRPath(filePath); if(!v.valid) return res.status(403).json({error:v.error}); try{ const content=await fs.readFile(v.path,'utf-8'); if(isRaw) return res.type('text/plain').send(content); res.json(JSON.parse(content)); } catch { res.status(500).json({error:'Failed to read OCR results'}); } });
+app.get('/api/ocr-results', async (req, res) => {
+  const filePath = req.query.path;
+  const imagePathParam = req.query.imagePath;
+  const isRaw = req.query.raw === 'true';
 
-app.post('/api/ocr-results/save', async (req,res)=>{ const {path:fp,content}=req.body||{}; if(!fp || typeof content!=='string') return res.status(400).json({error:'Path and content required'}); const v=validateOCRPath(fp); if(!v.valid) return res.status(403).json({error:v.error}); const ext=path.extname(v.path).toLowerCase(); let payload=content; if(ext==='.json'){ try{ const parsed=JSON.parse(content); payload=JSON.stringify(parsed,null,2); } catch (error){ return res.status(400).json({error:'Invalid JSON content'}); } } try{ await writeFileAtomic(v.path,payload); res.json({success:true}); } catch (error){ console.error('Failed to save OCR results', error); res.status(500).json({error:'Failed to save OCR results'}); } });
+  if (!filePath && !imagePathParam) {
+    return res.status(400).json({ error: 'Path or imagePath parameter required' });
+  }
+
+  try {
+    if (filePath) {
+      const validation = validateOCRPath(filePath);
+      if (!validation.valid) {
+        return res.status(403).json({ error: validation.error });
+      }
+
+      const content = await fs.readFile(validation.path, 'utf-8');
+      res.set('X-OCR-Result-Path', validation.path);
+      if (isRaw) {
+        return res.type('text/plain').send(content);
+      }
+      const parsed = JSON.parse(content);
+      return res.json(parsed);
+    }
+
+    const resolvedImagePath = resolveImagePath(imagePathParam);
+    if (!resolvedImagePath) {
+      return res.status(403).json({ error: 'Image not within configured directory' });
+    }
+
+    const existing = await checkResultFiles(resolvedImagePath);
+    const targetPath = isRaw ? existing.txt : existing.json;
+    if (!targetPath) {
+      return res.status(404).json({ error: 'OCR results not found' });
+    }
+
+    const content = await fs.readFile(targetPath, 'utf-8');
+    res.set('X-OCR-Result-Path', targetPath);
+    if (isRaw) {
+      return res.type('text/plain').send(content);
+    }
+
+    const parsed = JSON.parse(content);
+    return res.json(parsed);
+  } catch (error) {
+    console.error('Failed to read OCR results', error);
+    return res.status(500).json({ error: 'Failed to read OCR results' });
+  }
+});
+
+app.post('/api/ocr-results/save', async (req, res) => {
+  const { path: fp, content, type, imagePath } = req.body || {};
+  if (typeof content !== 'string') {
+    return res.status(400).json({ error: 'Content is required' });
+  }
+
+  const mode = type === 'txt' ? 'txt' : 'json';
+  let targets = [];
+
+  if (imagePath) {
+    const resolvedImagePath = resolveImagePath(imagePath);
+    if (!resolvedImagePath) {
+      return res.status(403).json({ error: 'Image not within configured directory' });
+    }
+    targets = listCandidatePaths(resolvedImagePath, mode);
+    if (targets.length === 0) {
+      return res.status(400).json({ error: 'No valid OCR result targets derived from image path' });
+    }
+  } else if (fp) {
+    const validation = validateOCRPath(fp);
+    if (!validation.valid) {
+      return res.status(403).json({ error: validation.error });
+    }
+    targets = [validation.path];
+  } else {
+    return res.status(400).json({ error: 'Path or imagePath parameter required' });
+  }
+
+  let payload = content;
+  if (mode === 'json') {
+    try {
+      const parsed = JSON.parse(content);
+      payload = JSON.stringify(parsed, null, 2);
+    } catch (error) {
+      return res.status(400).json({ error: 'Invalid JSON content' });
+    }
+  }
+
+  try {
+    for (const target of targets) {
+      await writeFileAtomic(target, payload);
+    }
+    res.json({ success: true, paths: targets });
+  } catch (error) {
+    console.error('Failed to save OCR results', error);
+    res.status(500).json({ error: 'Failed to save OCR results' });
+  }
+});
 
 app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
   if (!IMAGE_DIR) return res.json({ success: true, has: false });

@@ -10,6 +10,7 @@ class BatchModal {
     this.progressClient = null;
     this.startTime = null;
     this.isComplete = false;
+    this.currentFilter = 'all';
     this.createModal();
   }
 
@@ -254,7 +255,7 @@ class BatchModal {
    * @private
    */
   handleUpdate(data) {
-    const { stats, items } = data;
+  const { stats, items } = data;
 
     // Update stats
     document.getElementById('batchTotal').textContent = stats.total;
@@ -344,6 +345,10 @@ class BatchModal {
       </div>
     `;
     }).join('');
+
+    if (this.currentFilter) {
+      this.applyFilter(this.currentFilter);
+    }
   }
 
   /**
@@ -366,6 +371,7 @@ class BatchModal {
    * @private
    */
   applyFilter(filter) {
+    this.currentFilter = filter;
     const items = document.querySelectorAll('.batch-result-item');
 
     items.forEach(item => {

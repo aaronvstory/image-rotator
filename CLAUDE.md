@@ -9,7 +9,7 @@ Image Manipulator is a Node.js/Express web application for bulk image rotation w
 ## Architecture
 
 ### Backend (`server.js`, `server-ocr.js`)
-- **Express server** on port 3000 (configurable via PORT env var)
+- **Express server** on port 3001 (configurable via PORT env var)
 - **Sharp library** for image processing (thumbnails, previews, rotation)
 - **OCR Service** using OpenRouter API (GPT-4o-mini model)
 - **Server-Sent Events (SSE)** for real-time OCR progress streaming
@@ -99,15 +99,15 @@ The rotation system uses Sharp's `.rotate()` with these safeguards:
 
 ```bash
 # Test OCR on single image
-curl -X POST http://localhost:3000/api/ocr/single \
+curl -X POST http://localhost:3001/api/ocr/single \
   -H "Content-Type: application/json" \
   -d '{"imagePath": "relative/path/to/image.jpg"}'
 
 # Check OCR job status
-curl http://localhost:3000/api/ocr/job/{jobId}
+curl http://localhost:3001/api/ocr/job/{jobId}
 
 # Export OCR results
-curl http://localhost:3000/api/ocr/export/{jobId} > results.csv
+curl http://localhost:3001/api/ocr/export/{jobId} > results.csv
 ```
 
 ## Key Implementation Details

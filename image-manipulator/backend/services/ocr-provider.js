@@ -22,7 +22,7 @@ class OCRProvider {
       await this.initialize();
     }
     const response = await this.service.processImage(imagePath, options);
-    const status = (response?.status || '').toLowerCase();
+    const status = String(response?.status || '').toLowerCase();
 
     if (status === 'skipped') {
       return {

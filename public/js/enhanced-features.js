@@ -149,7 +149,11 @@
     const originalRenderImages = ImageManipulator.prototype.renderImages;
     ImageManipulator.prototype.renderImages = function() {
         originalRenderImages.call(this);
-        this.updateStatistics();
+        if (typeof this.applyFilter === 'function' && this.currentFilter) {
+            this.applyFilter(this.currentFilter);
+        } else {
+            this.updateStatistics();
+        }
     };
 
     // Override createImageCard to add View Results button
@@ -170,9 +174,15 @@
             };
 
             // Insert before controls
-            const controls = infoSection.querySelector('.image-controls');
-            if (controls) {
-                infoSection.insertBefore(viewBtn, controls);
+            if (infoSection) {
+                const controls = infoSection.querySelector('.image-controls');
+                if (controls) {
+                    infoSection.insertBefore(viewBtn, controls);
+                } else {
+                    infoSection.appendChild(viewBtn);
+                }
+            } else {
+                card.appendChild(viewBtn);
             }
         }
 

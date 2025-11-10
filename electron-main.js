@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 
 let mainWindow;
 let serverProcess;
-const SERVER_PORT = 3000;
+const SERVER_PORT = 3001;
 
 function createWindow() {
   mainWindow = new BrowserWindow({

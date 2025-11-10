@@ -6,6 +6,8 @@ class OCRViewer {
   constructor() {
     this.modal = null;
     this.currentImagePath = null;
+    this.currentJsonPath = null;
+    this.currentTxtPath = null;
     this.currentData = null;
     this.activeTab = 'formatted';
     this.hasChanges = false;
@@ -68,31 +70,28 @@ class OCRViewer {
 
   async open(imagePath) {
     this.currentImagePath = imagePath;
+    this.currentJsonPath = null;
+    this.currentTxtPath = null;
     this.hasChanges = false;
 
-    // Extract base path for OCR files
-    const ext = imagePath.match(/\.[^.]+$/)?.[0] || '';
-    const basePath = imagePath.slice(0, -ext.length);
-    const jsonPath = `${basePath}.ocr.json`;
-    const txtPath = `${basePath}.ocr.txt`;
-
     try {
-      // Fetch OCR results
-      const response = await fetch(`/api/ocr-results?path=${encodeURIComponent(jsonPath)}`);
+      const query = `/api/ocr-results?imagePath=${encodeURIComponent(imagePath)}`;
+      const response = await fetch(query);
       if (!response.ok) {
         throw new Error('Failed to load OCR results');
       }
 
+      this.currentJsonPath = response.headers.get('X-OCR-Result-Path');
       this.currentData = await response.json();
 
       // Update filename display
-      const filename = imagePath.split('/').pop();
+  const filename = imagePath.split(/[\\/]/).pop();
       document.getElementById('ocrViewerFilename').textContent = filename;
 
       // Populate views
       this.populateFormattedView();
       this.populateJsonView();
-      await this.populateRawView(txtPath);
+      await this.populateRawView();
 
       // Show modal
       this.modal.classList.remove('hidden');
@@ -111,6 +110,8 @@ class OCRViewer {
 
     this.modal.classList.add('hidden');
     this.currentImagePath = null;
+    this.currentJsonPath = null;
+    this.currentTxtPath = null;
     this.currentData = null;
     this.hasChanges = false;
   }
@@ -374,16 +375,28 @@ Hair Color: ${data.hairColor || 'N/A'}
     editor.value = JSON.stringify(this.currentData, null, 2);
   }
 
-  async populateRawView(txtPath) {
+  async populateRawView() {
     const editor = document.getElementById('ocrRawEditor');
 
     try {
-      const response = await fetch(`/api/ocr-results?path=${encodeURIComponent(txtPath)}&raw=true`);
+      if (!this.currentImagePath) {
+        editor.value = 'Image path is not set';
+        return;
+      }
+
+      const response = await fetch(`/api/ocr-results?imagePath=${encodeURIComponent(this.currentImagePath)}&raw=true`);
+      if (response.status === 404) {
+        this.currentTxtPath = null;
+        editor.value = 'No raw OCR text file found';
+        return;
+      }
+
       if (!response.ok) {
         editor.value = 'Failed to load raw text file';
         return;
       }
 
+      this.currentTxtPath = response.headers.get('X-OCR-Result-Path');
       const text = await response.text();
       editor.value = text;
 
@@ -426,15 +439,11 @@ Hair Color: ${data.hairColor || 'N/A'}
         // For raw text, we'll save it to the .txt file
         const rawText = document.getElementById('ocrRawEditor').value;
 
-        const ext = this.currentImagePath.match(/\.[^.]+$/)?.[0] || '';
-        const basePath = this.currentImagePath.slice(0, -ext.length);
-        const txtPath = `${basePath}.ocr.txt`;
-
         const response = await fetch('/api/ocr-results/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            path: txtPath,
+            imagePath: this.currentImagePath,
             content: rawText,
             type: 'txt'
           })
@@ -442,6 +451,11 @@ Hair Color: ${data.hairColor || 'N/A'}
 
         if (!response.ok) {
           throw new Error('Failed to save changes');
+        }
+
+        const payload = await response.json().catch(() => null);
+        if (payload && Array.isArray(payload.paths) && payload.paths.length > 0) {
+          this.currentTxtPath = payload.paths[0];
         }
 
         alert('Changes saved successfully!');
@@ -454,15 +468,11 @@ Hair Color: ${data.hairColor || 'N/A'}
       }
 
       // Save JSON changes
-      const ext = this.currentImagePath.match(/\.[^.]+$/)?.[0] || '';
-      const basePath = this.currentImagePath.slice(0, -ext.length);
-      const jsonPath = `${basePath}.ocr.json`;
-
       const response = await fetch('/api/ocr-results/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          path: jsonPath,
+          imagePath: this.currentImagePath,
           content: JSON.stringify(updatedData, null, 2),
           type: 'json'
         })
@@ -470,6 +480,11 @@ Hair Color: ${data.hairColor || 'N/A'}
 
       if (!response.ok) {
         throw new Error('Failed to save changes');
+      }
+
+      const payload = await response.json().catch(() => null);
+      if (payload && Array.isArray(payload.paths) && payload.paths.length > 0) {
+        this.currentJsonPath = payload.paths[0];
       }
 
       this.currentData = updatedData;

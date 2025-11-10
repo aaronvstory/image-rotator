@@ -3,43 +3,55 @@ const path = require('path');
 
 const JSON_SUFFIXES = ['_ocr_results.json', '.ocr.json'];
 const TXT_SUFFIXES = ['_ocr_results.txt', '.ocr.txt'];
-const VALID_RESULT_SUFFIXES = [...JSON_SUFFIXES, ...TXT_SUFFIXES];
+const VALID_RESULT_SUFFIXES = Array.from(new Set([...JSON_SUFFIXES, ...TXT_SUFFIXES]));
 
 function stripExtension(filePath) {
   const ext = path.extname(filePath);
   return ext ? filePath.slice(0, -ext.length) : filePath;
 }
 
+function buildCandidatePaths(basePath, originalPath, suffixes) {
+  const candidates = new Set();
+  suffixes.forEach((suffix) => {
+    candidates.add(path.normalize(`${basePath}${suffix}`));
+    if (suffix.startsWith('.ocr')) {
+      candidates.add(path.normalize(`${originalPath}${suffix}`));
+    }
+  });
+  return Array.from(candidates);
+}
+
 function getResultFileCandidates(imagePath) {
-  const base = stripExtension(imagePath);
-  return JSON_SUFFIXES.map((jsonSuffix, index) => ({
-    json: path.normalize(`${base}${jsonSuffix}`),
-    txt: path.normalize(`${base}${TXT_SUFFIXES[index] || TXT_SUFFIXES[0]}`)
-  }));
+  const normalizedOriginal = path.normalize(imagePath);
+  const base = stripExtension(normalizedOriginal);
+  return {
+    json: buildCandidatePaths(base, normalizedOriginal, JSON_SUFFIXES),
+    txt: buildCandidatePaths(base, normalizedOriginal, TXT_SUFFIXES)
+  };
 }
 
 async function checkResultFiles(imagePath) {
-  const candidates = getResultFileCandidates(imagePath);
+  const { json: jsonCandidates, txt: txtCandidates } = getResultFileCandidates(imagePath);
   const results = { json: null, txt: null };
 
-  for (const candidate of candidates) {
-    if (!results.json) {
-      try {
-        await fs.access(candidate.json);
-        results.json = candidate.json;
-      } catch {
-        /* ignore */
-      }
+  for (const candidate of jsonCandidates) {
+    try {
+      await fs.access(candidate);
+      results.json = candidate;
+      break;
+    } catch {
+      /* ignore */
     }
-    if (!results.txt) {
-      try {
-        await fs.access(candidate.txt);
-        results.txt = candidate.txt;
-      } catch {
-        /* ignore */
-      }
+  }
+
+  for (const candidate of txtCandidates) {
+    try {
+      await fs.access(candidate);
+      results.txt = candidate;
+      break;
+    } catch {
+      /* ignore */
     }
-    if (results.json && results.txt) break;
   }
 
   return results;
