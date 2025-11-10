@@ -29,6 +29,20 @@ const SUPPORTED_EXTENSIONS = [
   ".bmp",
 ];
 
+const JOB_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+function isValidJobId(jobId) {
+  return typeof jobId === "string" && JOB_ID_PATTERN.test(jobId);
+}
+
+function isPathInside(childPath, parentPath) {
+  const relative = path.relative(parentPath, childPath);
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
+}
+
 // Check if file is an image
 function isImageFile(filename) {
   const ext = path.extname(filename).toLowerCase();
@@ -738,6 +752,11 @@ async function processBatchOCR(jobId, images, concurrency) {
 // SSE progress endpoint
 app.get("/api/ocr/progress/:jobId", (req, res) => {
   const { jobId } = req.params;
+
+  if (!isValidJobId(jobId)) {
+    return res.status(400).json({ error: "Invalid job id" });
+  }
+
   const job = batchJobs.get(jobId);
 
   if (!job) {
@@ -803,7 +822,11 @@ app.get("/api/ocr/jobs", async (req, res) => {
 // Get raw job file
 app.get("/api/ocr/job/:jobId/raw", async (req, res) => {
   try {
-    const file = path.join(JOBS_DIR, `${req.params.jobId}.json`);
+    const { jobId } = req.params;
+    if (!isValidJobId(jobId)) {
+      return res.status(400).json({ error: "Invalid job id" });
+    }
+    const file = path.join(JOBS_DIR, `${jobId}.json`);
     const data = JSON.parse(await fs.readFile(file, "utf8"));
     res.json(data);
   } catch (e) {
@@ -815,6 +838,9 @@ app.get("/api/ocr/job/:jobId/raw", async (req, res) => {
 app.get("/api/ocr/result/:jobId/*", async (req, res) => {
   try {
     const jobId = req.params.jobId;
+    if (!isValidJobId(jobId)) {
+      return res.status(400).json({ error: "Invalid job id" });
+    }
     const encodedPath = req.params[0];
     const file = path.join(JOBS_DIR, `${jobId}.json`);
     const data = JSON.parse(await fs.readFile(file, "utf8"));
@@ -860,6 +886,9 @@ app.get("/api/ocr/health", async (req, res) => {
 app.delete("/api/ocr/result/:jobId/*", async (req, res) => {
   try {
     const { jobId } = req.params;
+    if (!isValidJobId(jobId)) {
+      return res.status(400).json({ error: "Invalid job id" });
+    }
     const user = req.user;
 
     if (user) {
@@ -873,9 +902,17 @@ app.delete("/api/ocr/result/:jobId/*", async (req, res) => {
       console.warn("DELETE /api/ocr/result invoked without authenticated user. Ensure the server runs in a trusted environment.");
     }
 
+    if (!IMAGE_DIR) {
+      return res.status(400).json({ error: "Image directory not set" });
+    }
+
     const encodedPath = req.params[0];
     const relativeImagePath = decodeURIComponent(encodedPath);
-    const fullPath = path.join(IMAGE_DIR, relativeImagePath);
+    const rootDir = path.resolve(IMAGE_DIR);
+    const fullPath = path.resolve(path.join(IMAGE_DIR, relativeImagePath));
+    if (!isPathInside(fullPath, rootDir)) {
+      return res.status(403).json({ error: "Image not within configured directory" });
+    }
     // Determine JSON/TXT output paths based on server-ocr.js conventions
     const jsonOut = fullPath + ".ocr.json";
     const txtOut = fullPath + ".ocr.txt";
@@ -911,6 +948,11 @@ app.delete("/api/ocr/result/:jobId/*", async (req, res) => {
 // Get job status endpoint
 app.get("/api/ocr/job/:jobId", (req, res) => {
   const { jobId } = req.params;
+
+  if (!isValidJobId(jobId)) {
+    return res.status(400).json({ error: "Invalid job id" });
+  }
+
   const job = batchJobs.get(jobId);
 
   if (!job) {
@@ -924,6 +966,9 @@ app.get("/api/ocr/job/:jobId", (req, res) => {
 app.get("/api/ocr/export/:jobId", async (req, res) => {
   try {
     const { jobId } = req.params;
+    if (!isValidJobId(jobId)) {
+      return res.status(400).json({ error: "Invalid job id" });
+    }
     let job = batchJobs.get(jobId);
 
     // If not in memory, try to load from persisted file
@@ -990,6 +1035,9 @@ app.get("/api/ocr/export/:jobId", async (req, res) => {
 // Cancel a batch job
 app.post("/api/ocr/job/:jobId/cancel", (req, res) => {
   const { jobId } = req.params;
+  if (!isValidJobId(jobId)) {
+    return res.status(400).json({ error: "Invalid job id" });
+  }
   const job = batchJobs.get(jobId);
   if (!job) {
     return res.status(404).json({ error: "Job not found" });

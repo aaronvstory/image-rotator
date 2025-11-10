@@ -36,11 +36,16 @@ class BatchManager extends EventEmitter {
     this.maxQueueSize = options.maxQueueSize || 1000;
     this.defaultOptions = { ...DEFAULT_OPTIONS, ...(options.defaultOptions || {}) };
     this.jobs = new Map();
+    this.cleanupTimers = new Map();
+    this.jobTtlMs = typeof options.jobTtlMs === 'number' ? options.jobTtlMs : 60 * 60 * 1000;
   }
 
   createJob(items, options = {}) {
     if (!Array.isArray(items) || items.length === 0) {
       throw new Error('Cannot create job with empty items array');
+    }
+    if (items.some((item) => !item || typeof item.path !== 'string' || !item.path.trim())) {
+      throw new Error('All items must have a valid path property');
     }
     if (items.length > this.maxQueueSize) {
       throw new Error(`Batch size ${items.length} exceeds maximum ${this.maxQueueSize}`);
@@ -105,6 +110,7 @@ class BatchManager extends EventEmitter {
   }
 
   deleteJob(jobId) {
+    this._clearCleanupTimer(jobId);
     this.jobs.delete(jobId);
     this.emit('jobDeleted', { jobId });
   }
@@ -112,6 +118,7 @@ class BatchManager extends EventEmitter {
   startJob(jobId) {
     const job = this.jobs.get(jobId);
     if (!job) return;
+    this._clearCleanupTimer(jobId);
     job.status = JOB_STATUS.PROCESSING;
     job.startedAt = new Date().toISOString();
     this.emit('jobStarted', { jobId });
@@ -120,6 +127,12 @@ class BatchManager extends EventEmitter {
   getNextChunk(jobId) {
     const job = this.jobs.get(jobId);
     if (!job) return [];
+    if (job.controls.cancelRequested || job.status === JOB_STATUS.CANCELLED) {
+      return [];
+    }
+    if (job.controls.paused || job.status === JOB_STATUS.PAUSED) {
+      return null;
+    }
 
     const chunk = [];
     for (const item of job.queue) {
@@ -182,6 +195,7 @@ class BatchManager extends EventEmitter {
     job.controls.cancelRequested = true;
     job.status = JOB_STATUS.CANCELLED;
     job.completedAt = new Date().toISOString();
+    this._scheduleCleanup(jobId);
     this.emit('jobCancelled', { jobId });
   }
 
@@ -208,12 +222,30 @@ class BatchManager extends EventEmitter {
       job.completedAt = new Date().toISOString();
       job.status = job.stats.failed > 0 ? JOB_STATUS.COMPLETED_WITH_ERRORS : JOB_STATUS.COMPLETED;
       this.emit('jobCompleted', { jobId, stats: job.stats, status: job.status });
+      this._scheduleCleanup(jobId);
     }
   }
 
   _getFilename(filePath) {
     if (!filePath) return 'unknown';
     return filePath.split('/').pop().split('\\').pop();
+  }
+
+  _scheduleCleanup(jobId) {
+    if (!this.jobTtlMs || this.jobTtlMs <= 0) return;
+    this._clearCleanupTimer(jobId);
+    const timer = setTimeout(() => {
+      this.deleteJob(jobId);
+    }, this.jobTtlMs);
+    this.cleanupTimers.set(jobId, timer);
+  }
+
+  _clearCleanupTimer(jobId) {
+    const timer = this.cleanupTimers.get(jobId);
+    if (timer) {
+      clearTimeout(timer);
+      this.cleanupTimers.delete(jobId);
+    }
   }
 }
 

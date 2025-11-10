@@ -39,6 +39,10 @@ class BatchProcessor {
         }
 
         const chunk = this.batchManager.getNextChunk(jobId);
+        if (chunk === null) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          continue;
+        }
         if (chunk.length === 0) break;
 
         await this.processChunk(jobId, chunk);
@@ -81,7 +85,7 @@ class BatchProcessor {
 
       if (ocrResult.skipped) {
         this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.SKIPPED, {
-          result: ocrResult.data,
+          result: { skipped: true, message: ocrResult.message },
           message: ocrResult.message || 'Existing results detected'
         });
         return;
@@ -102,9 +106,12 @@ class BatchProcessor {
         error: error.message
       });
 
-      if (item.retries < (options.retryCount || 0)) {
+      const allowedRetries = options?.retryCount ?? 0;
+      const currentRetries = typeof item.retries === 'number' ? item.retries : 0;
+      const nextRetries = currentRetries + 1;
+      if (nextRetries <= allowedRetries) {
         this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.PENDING, {
-          retries: item.retries + 1
+          retries: nextRetries
         });
       }
     }

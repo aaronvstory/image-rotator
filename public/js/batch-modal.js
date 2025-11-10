@@ -166,14 +166,15 @@ class BatchModal {
       }
     });
 
-    // Filter buttons
-    document.querySelectorAll('.filter-btn').forEach(btn => {
+    // Filter buttons scoped to modal
+    const filterButtons = this.modal.querySelectorAll('.batch-results-filter .filter-btn');
+    filterButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
         const filter = e.target.dataset.filter;
         this.applyFilter(filter);
 
         // Update active state
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        filterButtons.forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
       });
     });
@@ -395,4 +396,3 @@ class BatchModal {
     document.getElementById('batchResumeBtn').classList.remove('hidden');
   }
 }
-

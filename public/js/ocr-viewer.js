@@ -295,7 +295,7 @@ class OCRViewer {
         </div>
         <div class="field">
           <div class="field-label">Model Used:</div>
-          <div class="field-value">${data.modelUsed || 'N/A'}</div>
+          <div class="field-value">${this.escapeHtml(data.modelUsed) || 'N/A'}</div>
         </div>
         <div class="field">
           <div class="field-label">Processed:</div>

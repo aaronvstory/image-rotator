@@ -10,6 +10,14 @@ class BatchSelection {
     this.onSelectionChange = null; // Callback when selection changes
   }
 
+  static generateItemId(index = 0) {
+    if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+      return globalThis.crypto.randomUUID();
+    }
+    const randomPart = Math.random().toString(16).slice(2);
+    return `item_${Date.now()}_${index}_${randomPart}`;
+  }
+
   /**
    * Initialize with available image IDs
    * @param {Array<string>} imageIds
@@ -142,7 +150,7 @@ class BatchSelection {
     return images
       .filter(img => selectedIds.includes(img.fullPath))
       .map((img, index) => ({
-        id: `item_${index}`,
+        id: img.id || BatchSelection.generateItemId(index),
         path: img.fullPath,
         filename: img.filename
       }));

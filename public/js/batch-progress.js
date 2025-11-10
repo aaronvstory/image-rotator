@@ -87,7 +87,17 @@ class BatchProgress {
 
     try {
       const response = await fetch(`/api/batch/status/${encodeURIComponent(this.jobId)}?includeItems=true`);
+
+      if (!response.ok) {
+        this._notifyError(`Failed to load job status (HTTP ${response.status})`);
+        return;
+      }
+
       const data = await response.json();
+      if (!data || typeof data !== 'object' || !data.status || !data.stats) {
+        this._notifyError('Received malformed job status payload');
+        return;
+      }
 
       if (data.status === 'completed' || data.status === 'completed_with_errors') {
         this._notifyComplete(data);
@@ -106,6 +116,11 @@ class BatchProgress {
    * @private
    */
   _handleUpdate(data) {
+    if (!data || typeof data !== 'object' || !data.stats) {
+      this._notifyError('Missing job statistics in update payload');
+      return;
+    }
+
     // Check if job is complete
     const isComplete = data.status === 'completed' ||
                       data.status === 'completed_with_errors' ||
@@ -265,4 +280,3 @@ class BatchProgress {
     }
   }
 }
-

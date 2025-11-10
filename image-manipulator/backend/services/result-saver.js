@@ -10,7 +10,17 @@ async function writeFileAtomic(filePath, content) {
   await fs.mkdir(dir, { recursive: true });
   const tempPath = `${filePath}.tmp`;
   await fs.writeFile(tempPath, content, 'utf8');
-  await fs.rename(tempPath, filePath);
+  try {
+    await fs.rename(tempPath, filePath);
+  } catch (error) {
+    if (error.code === 'EXDEV') {
+      await fs.copyFile(tempPath, filePath);
+      await fs.unlink(tempPath);
+    } else {
+      await fs.unlink(tempPath).catch(() => {});
+      throw error;
+    }
+  }
 }
 
 function buildPaths(imagePath, suffixes) {
@@ -64,5 +74,6 @@ async function saveOCRResults(imagePath, result, options = {}) {
 }
 
 module.exports = {
-  saveOCRResults
+  saveOCRResults,
+  writeFileAtomic
 };

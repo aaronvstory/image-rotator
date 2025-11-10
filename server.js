@@ -14,6 +14,7 @@ const {
   checkResultFiles,
   VALID_RESULT_SUFFIXES
 } = require('./image-manipulator/backend/services/skip-detector');
+const { writeFileAtomic } = require('./image-manipulator/backend/services/result-saver');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -175,7 +176,7 @@ app.post('/api/rotate', async (req, res) => {
 
 app.get('/api/ocr-results', async (req,res)=>{ const filePath=req.query.path; const isRaw=req.query.raw==='true'; if(!filePath) return res.status(400).json({error:'Path parameter required'}); const v=validateOCRPath(filePath); if(!v.valid) return res.status(403).json({error:v.error}); try{ const content=await fs.readFile(v.path,'utf-8'); if(isRaw) return res.type('text/plain').send(content); res.json(JSON.parse(content)); } catch { res.status(500).json({error:'Failed to read OCR results'}); } });
 
-app.post('/api/ocr-results/save', async (req,res)=>{ const {path:fp,content}=req.body||{}; if(!fp || typeof content!=='string') return res.status(400).json({error:'Path and content required'}); const v=validateOCRPath(fp); if(!v.valid) return res.status(403).json({error:v.error}); try{ await fs.writeFile(v.path,content,'utf-8'); res.json({success:true}); } catch { res.status(500).json({error:'Failed to save OCR results'}); } });
+app.post('/api/ocr-results/save', async (req,res)=>{ const {path:fp,content}=req.body||{}; if(!fp || typeof content!=='string') return res.status(400).json({error:'Path and content required'}); const v=validateOCRPath(fp); if(!v.valid) return res.status(403).json({error:v.error}); const ext=path.extname(v.path).toLowerCase(); let payload=content; if(ext==='.json'){ try{ const parsed=JSON.parse(content); payload=JSON.stringify(parsed,null,2); } catch (error){ return res.status(400).json({error:'Invalid JSON content'}); } } try{ await writeFileAtomic(v.path,payload); res.json({success:true}); } catch (error){ console.error('Failed to save OCR results', error); res.status(500).json({error:'Failed to save OCR results'}); } });
 
 app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
   if (!IMAGE_DIR) return res.json({ success: true, has: false });
