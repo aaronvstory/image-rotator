@@ -9,7 +9,10 @@ const path = require('path');
 
 // Batch routes (from WSL services)
 const batchRoutes = require('./image-manipulator/backend/routes/batch');
-const { checkResultFiles } = require('./image-manipulator/backend/services/skip-detector');
+const {
+  checkResultFiles,
+  VALID_RESULT_SUFFIXES
+} = require('./image-manipulator/backend/services/skip-detector');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,8 +26,8 @@ const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff',
 function isImageFile(filename) { return SUPPORTED_EXTENSIONS.includes(path.extname(filename).toLowerCase()); }
 
 async function hasOCRResults(imagePath) {
-  const ext = path.extname(imagePath); const base = imagePath.slice(0, -ext.length);
-  try { await fs.access(`${base}_ocr_results.json`); return true; } catch { return false; }
+  const files = await checkResultFiles(imagePath);
+  return Boolean(files.json || files.txt);
 }
 
 async function scanImagesRecursively(dirPath) {
@@ -70,11 +73,14 @@ function validateOCRPath(fp) {
   if (!IMAGE_DIR) return { valid: false, error: 'No image directory configured' };
   const root = path.resolve(path.normalize(IMAGE_DIR));
   const abs = path.resolve(path.normalize(fp));
-  if (!isPathInside(abs, root) && abs !== root) {
+  if (!isPathInside(abs, root)) {
     return { valid: false, error: 'Path must be within image directory' };
   }
   const name = path.basename(abs);
-  if (!name.endsWith('_ocr_results.json') && !name.endsWith('_ocr_results.txt')) {
+  const matchesSuffix = VALID_RESULT_SUFFIXES.some((suffix) =>
+    name.toLowerCase().endsWith(suffix)
+  );
+  if (!matchesSuffix) {
     return { valid: false, error: 'Invalid OCR results file' };
   }
   return { valid: true, path: abs };

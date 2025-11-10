@@ -15,15 +15,27 @@ class OCRProvider {
 
   async processImage(imagePath, options = {}) {
     const response = await this.service.processImage(imagePath, options);
-    if (response?.status === 'success' && response.data) {
+    const status = (response?.status || '').toLowerCase();
+
+    if (status === 'skipped') {
+      return {
+        success: true,
+        skipped: true,
+        message: response?.message,
+        data: response
+      };
+    }
+
+    if (status === 'success' && response?.data) {
       return {
         success: true,
         data: this.parseResult(response.data)
       };
     }
+
     return {
       success: false,
-      error: response?.error || `Failed to process ${path.basename(imagePath)}`
+      error: response?.error || response?.message || `Failed to process ${path.basename(imagePath)}`
     };
   }
 

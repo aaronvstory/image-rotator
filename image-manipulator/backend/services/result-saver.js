@@ -1,5 +1,9 @@
 const fs = require('fs').promises;
 const path = require('path');
+const {
+  JSON_SUFFIXES,
+  TXT_SUFFIXES
+} = require('./skip-detector');
 
 async function writeFileAtomic(filePath, content) {
   const dir = path.dirname(filePath);
@@ -9,40 +13,51 @@ async function writeFileAtomic(filePath, content) {
   await fs.rename(tempPath, filePath);
 }
 
-function buildPaths(imagePath) {
+function buildPaths(imagePath, suffixes) {
   const ext = path.extname(imagePath);
   const base = ext ? imagePath.slice(0, -ext.length) : imagePath;
-  return {
-    json: `${base}_ocr_results.json`,
-    txt: `${base}_ocr_results.txt`
-  };
+  return suffixes.map((suffix) => path.normalize(`${base}${suffix}`));
+}
+
+async function saveJSONVariants(paths, data) {
+  const payload = JSON.stringify(data, null, 2);
+  for (const target of paths) {
+    await writeFileAtomic(target, payload);
+  }
+  return paths[0];
+}
+
+async function saveTxtVariants(paths, data) {
+  const lines = [
+    `OCR RESULTS FOR: ${path.basename(data.imagePath || 'image')}`,
+    `Processed At: ${data.processedAt || new Date().toISOString()}`,
+    ''
+  ];
+  Object.entries(data)
+    .filter(([key, value]) => value !== undefined && value !== null && typeof key === 'string')
+    .forEach(([key, value]) => {
+      lines.push(`${key}: ${value}`);
+    });
+
+  const payload = lines.join('\n');
+  for (const target of paths) {
+    await writeFileAtomic(target, payload);
+  }
+  return paths[0];
 }
 
 async function saveOCRResults(imagePath, result, options = {}) {
-  const targets = buildPaths(imagePath);
   const formats = options.outputFormat || ['json', 'txt'];
   const files = {};
 
   if (formats.includes('json')) {
-    await writeFileAtomic(targets.json, JSON.stringify(result, null, 2));
-    files.json = targets.json;
+    const jsonPaths = buildPaths(imagePath, JSON_SUFFIXES);
+    files.json = await saveJSONVariants(jsonPaths, result);
   }
 
   if (formats.includes('txt')) {
-    const lines = [
-      `OCR RESULTS FOR: ${path.basename(imagePath)}`,
-      `Processed At: ${result.processedAt || new Date().toISOString()}`,
-      ''
-    ];
-    Object.entries(result)
-      .filter(([key]) => typeof key === 'string')
-      .forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        lines.push(`${key}: ${value}`);
-      });
-
-    await writeFileAtomic(targets.txt, lines.join('\n'));
-    files.txt = targets.txt;
+    const txtPaths = buildPaths(imagePath, TXT_SUFFIXES);
+    files.txt = await saveTxtVariants(txtPaths, result);
   }
 
   return { files };

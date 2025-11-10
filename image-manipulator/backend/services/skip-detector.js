@@ -1,32 +1,46 @@
 const fs = require('fs').promises;
 const path = require('path');
 
-const JSON_SUFFIX = '_ocr_results.json';
-const TXT_SUFFIX = '_ocr_results.txt';
+const JSON_SUFFIXES = ['_ocr_results.json', '.ocr.json'];
+const TXT_SUFFIXES = ['_ocr_results.txt', '.ocr.txt'];
+const VALID_RESULT_SUFFIXES = [...JSON_SUFFIXES, ...TXT_SUFFIXES];
 
-function buildResultPaths(imagePath) {
-  const ext = path.extname(imagePath);
-  const base = ext ? imagePath.slice(0, -ext.length) : imagePath;
-  return {
-    json: `${base}${JSON_SUFFIX}`,
-    txt: `${base}${TXT_SUFFIX}`
-  };
+function stripExtension(filePath) {
+  const ext = path.extname(filePath);
+  return ext ? filePath.slice(0, -ext.length) : filePath;
+}
+
+function getResultFileCandidates(imagePath) {
+  const base = stripExtension(imagePath);
+  return JSON_SUFFIXES.map((jsonSuffix, index) => ({
+    json: path.normalize(`${base}${jsonSuffix}`),
+    txt: path.normalize(`${base}${TXT_SUFFIXES[index] || TXT_SUFFIXES[0]}`)
+  }));
 }
 
 async function checkResultFiles(imagePath) {
-  const targets = buildResultPaths(imagePath);
-  const results = { json: false, txt: false };
+  const candidates = getResultFileCandidates(imagePath);
+  const results = { json: null, txt: null };
 
-  await Promise.all(
-    Object.entries(targets).map(async ([key, filePath]) => {
+  for (const candidate of candidates) {
+    if (!results.json) {
       try {
-        await fs.access(filePath);
-        results[key] = true;
+        await fs.access(candidate.json);
+        results.json = candidate.json;
       } catch {
-        results[key] = false;
+        /* ignore */
       }
-    })
-  );
+    }
+    if (!results.txt) {
+      try {
+        await fs.access(candidate.txt);
+        results.txt = candidate.txt;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (results.json && results.txt) break;
+  }
 
   return results;
 }
@@ -34,17 +48,17 @@ async function checkResultFiles(imagePath) {
 async function shouldSkipImage(imagePath, options = {}) {
   const overwriteMode = options.overwrite || 'skip';
   if (overwriteMode === 'overwrite') return false;
+  if (overwriteMode === 'suffix') return false;
 
   const existing = await checkResultFiles(imagePath);
-  if (overwriteMode === 'suffix') {
-    // suffix mode always writes a new file with incremented suffix, so never skip
-    return false;
-  }
-
-  return existing.json || existing.txt;
+  return Boolean(existing.json || existing.txt);
 }
 
 module.exports = {
   checkResultFiles,
-  shouldSkipImage
+  shouldSkipImage,
+  getResultFileCandidates,
+  JSON_SUFFIXES,
+  TXT_SUFFIXES,
+  VALID_RESULT_SUFFIXES
 };

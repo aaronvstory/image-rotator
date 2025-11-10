@@ -78,6 +78,15 @@ class BatchProcessor {
       }
 
       const ocrResult = await this.ocrProvider.processImage(item.path, options);
+
+      if (ocrResult.skipped) {
+        this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.SKIPPED, {
+          result: ocrResult.data,
+          message: ocrResult.message || 'Existing results detected'
+        });
+        return;
+      }
+
       if (!ocrResult.success) {
         throw new Error(ocrResult.error || 'OCR processing failed');
       }

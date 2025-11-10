@@ -138,7 +138,7 @@ class OCRViewer {
   renderCopyButton(value) {
     const encoded = encodeURIComponent(value || '');
     return `
-      <button class="field-copy-btn" onclick="window.ocrViewer.copyField(decodeURIComponent('${encoded}'))">
+      <button class="field-copy-btn" data-copy-value="${encoded}">
         <i class="fas fa-copy"></i> Copy
       </button>
     `;
@@ -149,7 +149,7 @@ class OCRViewer {
     const data = this.currentData;
 
     const html = `
-      <button class="copy-all-btn" onclick="window.ocrViewer.copyAllData()">
+      <button class="copy-all-btn">
         <i class="fas fa-copy"></i>
         Copy All Data
         <span class="copy-feedback" id="copyAllFeedback">Copied!</span>
@@ -302,6 +302,12 @@ class OCRViewer {
     if (copyAllBtn) {
       copyAllBtn.addEventListener('click', () => this.copyAllData());
     }
+    container.querySelectorAll('.field-copy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const raw = btn.getAttribute('data-copy-value') || '';
+        this.copyField(decodeURIComponent(raw));
+      });
+    });
   }
 
   copyField(text) {
