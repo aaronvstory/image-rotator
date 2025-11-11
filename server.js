@@ -248,11 +248,19 @@ app.post('/api/ocr-results/save', async (req, res) => {
     if (!resolvedImagePath) {
       return res.status(403).json({ error: 'Image not within configured directory' });
     }
-    targets = listCandidatePaths(resolvedImagePath, mode);
-    if (targets.length === 0) {
-      return res.status(400).json({ error: 'No valid OCR result targets derived from image path' });
+        // Use existing file if present; otherwise choose a single canonical target
+    const existing = await checkResultFiles(resolvedImagePath);
+    let target;
+    if (mode === 'json') {
+      target = existing.json || listCandidatePaths(resolvedImagePath, 'json')[0];
+    } else {
+      target = existing.txt || listCandidatePaths(resolvedImagePath, 'txt')[0];
     }
-  } else if (fp) {
+    const validation = await validateOCRPath(target, IMAGE_DIR, VALID_RESULT_SUFFIXES);
+    if (!validation.valid) {
+      return res.status(403).json({ error: validation.error });
+    }
+    targets = [validation.path];  } else if (fp) {
     const validation = await validateOCRPath(fp, IMAGE_DIR, VALID_RESULT_SUFFIXES);
     if (!validation.valid) {
       return res.status(403).json({ error: validation.error });
@@ -273,10 +281,7 @@ app.post('/api/ocr-results/save', async (req, res) => {
   }
 
   try {
-    for (const target of targets) {
-      await writeFileAtomic(target, payload);
-    }
-    res.json({ success: true, paths: targets });
+    // Write exactly one validated file\r\n    await writeFileAtomic(targets[0], payload);\r\n    res.json({ success: true, paths: targets });
   } catch (error) {
     console.error('Failed to save OCR results', error);
     res.status(500).json({ error: 'Failed to save OCR results' });
@@ -305,5 +310,8 @@ app.listen(PORT, HOST, () => {
   console.log(`\nWSL Functional Base server running at http://${HOST}:${PORT}`);
   console.log('Rollback tag: v1-polished-ui');
 });
+
+
+
 
 

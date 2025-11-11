@@ -1,12 +1,15 @@
-/**
- * Batch Processor
- * Runs OCR processing in chunks using the OCR provider + helper services.
- */
+const { ITEM_STATUS, JOB_STATUS } = require('./batch-manager');
+const { shouldSkipImage } = require('./skip-detector');
+const { saveOCRResults } = require('./result-saver');
+const { OCRProvider } = require('./ocr-provider');
+const { resolveImagePath } = require('../utils/path-utils');
+const { resolveImagePath } = require('../utils/path-utils');
 
 const { ITEM_STATUS, JOB_STATUS } = require('./batch-manager');
 const { shouldSkipImage } = require('./skip-detector');
 const { saveOCRResults } = require('./result-saver');
 const { OCRProvider } = require('./ocr-provider');
+const { resolveImagePath } = require('../utils/path-utils');
 
 class BatchProcessor {
   constructor(batchManager) {
@@ -125,7 +128,7 @@ class BatchProcessor {
         return;
       }
 
-      const ocrResult = await provider.processImage(item.path, options);
+      const safePath = await resolveImagePath(item.path, options?.imageDir || process.env.IMAGE_DIR || '');\n      if (!safePath) { throw new Error('Refusing to process file outside IMAGE_DIR'); }\n      const ocrResult = await provider.processImage(safePath, options);
 
       if (this._isCancellationRequested(jobId)) {
         this._markCancelled(jobId, item.id);
@@ -144,7 +147,7 @@ class BatchProcessor {
         throw new Error(ocrResult.error || 'OCR processing failed');
       }
 
-      const saveResult = await saveOCRResults(item.path, ocrResult.data, options);
+      const saveResult = await saveOCRResults(safePath, ocrResult.data, options);
 
       if (this._isCancellationRequested(jobId)) {
         this._markCancelled(jobId, item.id);
@@ -181,12 +184,7 @@ class BatchProcessor {
     return job.status === JOB_STATUS.CANCELLED || job.controls.cancelRequested;
   }
 
-  _markCancelled(jobId, itemId) {
-    this.batchManager.updateItemStatus(jobId, itemId, ITEM_STATUS.FAILED, {
-      error: 'Cancelled while processing',
-      preserveResult: true,
-      preserveError: true
-    });
+  _markCancelled(jobId, itemId) {\n    this.batchManager.updateItemStatus(jobId, itemId, ITEM_STATUS.SKIPPED, {\n      error: 'Cancelled while processing',\n      preserveResult: true,\n      preserveError: true\n    });\n  });
   }
 
   _requeueItems(jobId, items) {
@@ -233,3 +231,7 @@ class BatchProcessor {
 module.exports = {
   BatchProcessor
 };
+
+
+
+

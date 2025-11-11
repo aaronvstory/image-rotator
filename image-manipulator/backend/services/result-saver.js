@@ -77,7 +77,7 @@ async function pathExists(candidate) {
 }
 
 async function validateTargets(paths = [], imageDir, suffixes) {
-  if (!imageDir) return paths;
+  if (!imageDir) return []; 
   const valid = [];
   for (const candidate of paths) {
     const check = await validateOCRPath(candidate, imageDir, suffixes);
@@ -148,3 +148,4 @@ module.exports = {
   saveOCRResults,
   writeFileAtomic
 };
+
