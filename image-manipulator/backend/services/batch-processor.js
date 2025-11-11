@@ -54,6 +54,7 @@ class BatchProcessor {
         await this.processChunk(jobId, chunk);
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
+      this._ensureJobCompletion(jobId);
     } finally {
       const storedRuntime = this.processingJobs.get(jobId);
       const provider = storedRuntime?.provider;
@@ -69,6 +70,7 @@ class BatchProcessor {
         }
       }
       this.processingJobs.delete(jobId);
+      this._ensureJobCompletion(jobId);
     }
   }
 
@@ -194,6 +196,37 @@ class BatchProcessor {
         retries: item.retries ?? 0
       });
     });
+  }
+
+  _ensureJobCompletion(jobId) {
+    const job = this.batchManager.getJob(jobId);
+    if (!job) return;
+    if (job.status === JOB_STATUS.CANCELLED) return;
+
+    const doneStatuses = new Set([JOB_STATUS.COMPLETED, JOB_STATUS.COMPLETED_WITH_ERRORS]);
+    if (doneStatuses.has(job.status)) {
+      if (!job.completedAt) {
+        job.completedAt = new Date().toISOString();
+      }
+      return;
+    }
+
+    const stats = job.stats || {};
+    const pending = stats.pending || 0;
+    const processing = stats.processing || 0;
+    if (pending > 0 || processing > 0) {
+      return;
+    }
+
+    const nextStatus = (stats.failed || 0) > 0
+      ? JOB_STATUS.COMPLETED_WITH_ERRORS
+      : JOB_STATUS.COMPLETED;
+    job.status = nextStatus;
+    job.completedAt = new Date().toISOString();
+    this.batchManager.emit('jobCompleted', { jobId, stats, status: nextStatus });
+    if (typeof this.batchManager._scheduleCleanup === 'function') {
+      this.batchManager._scheduleCleanup(jobId);
+    }
   }
 }
 

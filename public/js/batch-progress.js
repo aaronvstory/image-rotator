@@ -199,7 +199,7 @@ class BatchProgress {
     if (!this.jobId) return;
 
     try {
-      const response = await fetch(`/api/batch/pause/${encodeURIComponent(this.jobId)}`, {
+      const response = await this._fetch(`/api/batch/pause/${encodeURIComponent(this.jobId)}`, {
         method: 'POST'
       });
       if (!response.ok) {
@@ -225,7 +225,7 @@ class BatchProgress {
     if (!this.jobId) return;
 
     try {
-      const response = await fetch(`/api/batch/resume/${encodeURIComponent(this.jobId)}`, {
+      const response = await this._fetch(`/api/batch/resume/${encodeURIComponent(this.jobId)}`, {
         method: 'POST'
       });
       if (!response.ok) {
@@ -251,7 +251,7 @@ class BatchProgress {
     if (!this.jobId) return;
 
     try {
-      const response = await fetch(`/api/batch/cancel/${encodeURIComponent(this.jobId)}`, {
+      const response = await this._fetch(`/api/batch/cancel/${encodeURIComponent(this.jobId)}`, {
         method: 'POST'
       });
       if (!response.ok) {

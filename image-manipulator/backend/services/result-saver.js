@@ -4,6 +4,7 @@ const {
   JSON_SUFFIXES,
   TXT_SUFFIXES
 } = require('./skip-detector');
+const { validateOCRPath } = require('../utils/path-utils');
 
 async function writeFileAtomic(filePath, content) {
   const dir = path.dirname(filePath);
@@ -66,30 +67,76 @@ async function saveTxtVariants(paths, data) {
   return paths[0];
 }
 
+async function pathExists(candidate) {
+  try {
+    await fs.access(candidate);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function validateTargets(paths = [], imageDir, suffixes) {
+  if (!imageDir) return paths;
+  const valid = [];
+  for (const candidate of paths) {
+    const check = await validateOCRPath(candidate, imageDir, suffixes);
+    if (check?.valid && check.path) {
+      valid.push(check.path);
+    }
+  }
+  return valid;
+}
+
 async function saveOCRResults(imagePath, result, options = {}) {
-  const formats = options.outputFormat || ['json', 'txt'];
-  const overwriteMode = options.overwrite === 'suffix' ? 'suffix' : 'skip';
+  const {
+    outputFormat = ['json', 'txt'],
+    overwrite = 'skip',
+    imageDir = process.env.IMAGE_DIR || null
+  } = options;
+
+  const formats = Array.isArray(outputFormat) && outputFormat.length
+    ? outputFormat.map((fmt) => fmt.toLowerCase())
+    : ['json', 'txt'];
+  const overwriteMode = overwrite === 'suffix'
+    ? 'suffix'
+    : overwrite === 'overwrite'
+      ? 'overwrite'
+      : 'skip';
   const files = {};
 
-  const selectTargets = (paths = []) => {
-    if (!paths.length) return [];
-    return overwriteMode === 'suffix'
-      ? [paths[paths.length - 1]]
-      : [paths[0]];
+  const pickTargets = async (paths, suffixes) => {
+    const validated = await validateTargets(paths, imageDir, suffixes);
+    if (!validated.length) return [];
+
+    if (overwriteMode === 'suffix') {
+      return [validated[validated.length - 1]];
+    }
+    if (overwriteMode === 'overwrite') {
+      return [validated[0]];
+    }
+
+    for (const candidate of validated) {
+      const exists = await pathExists(candidate);
+      if (!exists) {
+        return [candidate];
+      }
+    }
+    return [];
   };
 
   if (formats.includes('json')) {
     const jsonPaths = buildPaths(imagePath, JSON_SUFFIXES);
-    const targets = selectTargets(jsonPaths);
-    if (targets.length > 0) {
+    const targets = await pickTargets(jsonPaths, JSON_SUFFIXES);
+    if (targets.length) {
       files.json = await saveJSONVariants(targets, result);
     }
   }
 
   if (formats.includes('txt')) {
     const txtPaths = buildPaths(imagePath, TXT_SUFFIXES);
-    const targets = selectTargets(txtPaths);
-    if (targets.length > 0) {
+    const targets = await pickTargets(txtPaths, TXT_SUFFIXES);
+    if (targets.length) {
       files.txt = await saveTxtVariants(targets, result);
     }
   }

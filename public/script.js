@@ -1,6 +1,7 @@
 // Image Manipulator v2.0 - Client-side JavaScript Application
 import BatchController from './js/controllers/BatchController.js';
 import Pager from './js/pager.js';
+import { setupBatchControls } from './js/enhanced-features.js';
 class ImageManipulator {
     constructor() {
         this.images = [];
@@ -23,11 +24,27 @@ class ImageManipulator {
     }
 
     init() {
-        this.bindEvents();
-        this.loadCurrentDirectory();
-        this.setupGridControls();
-        this.setupPaginationControls();
-        this.batchController.init();
+        const bootstrap = () => {
+            this.bindEvents();
+            this.loadCurrentDirectory();
+            this.setupGridControls();
+            this.setupPaginationControls();
+            this.batchController.init();
+
+            if (typeof setupBatchControls === 'function') {
+                setupBatchControls({
+                    controller: this.batchController,
+                    imageManipulator: this,
+                    getImages: () => this.images || []
+                });
+            }
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
+        } else {
+            bootstrap();
+        }
     }
 
     bindEvents() {
@@ -473,7 +490,7 @@ class ImageManipulator {
         card.dataset.index = index;
 
         const thumbnailUrl = `/api/thumbnail/${encodeURIComponent(image.relativePath)}?t=${Date.now()}`;
-        const selectionId = image.relativePath || image.fullPath;
+        const selectionId = image.fullPath || image.relativePath || image.id;
         const isSelected = this.batchController.batchSelection.isSelected(selectionId);
         const encodedId = encodeURIComponent(selectionId);
 
@@ -526,7 +543,13 @@ class ImageManipulator {
     }
 
     updateBatchUI(selectionInfo) {
-        const count = selectionInfo.count;
+        const selectionState = selectionInfo || {
+            selectedIds: this.batchController?.batchSelection?.getSelectedIds() || [],
+            count: this.batchController?.batchSelection?.getSelectedCount() || 0,
+            allSelected: this.batchController?.batchSelection?.isAllSelected() || false,
+            someSelected: this.batchController?.batchSelection?.isSomeSelected() || false
+        };
+        const count = selectionState.count;
 
         // Update selection count
         const selectionCountEl = document.getElementById('selectionCount');
@@ -542,7 +565,7 @@ class ImageManipulator {
 
         // Update all checkboxes
         this.images.forEach(image => {
-            const selectionId = image.relativePath || image.fullPath;
+            const selectionId = image.fullPath || image.relativePath || image.id;
             const encodedSelectionId = encodeURIComponent(selectionId);
             const checkbox = document.querySelector(`input[data-image-id="${encodedSelectionId}"]`);
             if (checkbox) {

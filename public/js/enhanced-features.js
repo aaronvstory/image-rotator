@@ -1,195 +1,198 @@
-/**
- * Enhanced Features - Filters, Statistics, and Advanced Selection
- */
+const ENHANCED_HOOK_KEY = Symbol('enhancedHooksInstalled');
 
-// Extend ImageManipulator with new methods
-(function() {
-    const IM = window.ImageManipulator;
-    if (!IM) return;
+const getStableId = (img = {}) => img.fullPath || img.relativePath || img.id || img.path;
 
-    // Extend ImageManipulator with new methods
-    const originalSetupBatchControls = IM.prototype.setupBatchControls;
+const resolveImages = (ctx) => {
+  if (typeof ctx?.getImages === 'function') {
+    try {
+      return ctx.getImages() || [];
+    } catch {
+      return [];
+    }
+  }
+  const fallback = ctx?.imageManipulator?.images || ctx?.controller?.imageManipulator?.images;
+  return Array.isArray(fallback) ? fallback : [];
+};
 
-    IM.prototype.setupBatchControls = function() {
-        // Call original setup
-        if (originalSetupBatchControls) {
-            originalSetupBatchControls.call(this);
-        }
+const updateStatistics = (manipulator) => {
+  const images = manipulator.images || [];
+  const total = images.length;
+  const processed = images.filter((img) => img.hasOCRResults).length;
+  const remaining = total - processed;
 
-        // Setup filter buttons
-        const filterContainer = document.querySelector('.batch-filter-controls');
-        if (filterContainer) {
-            filterContainer.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const filter = e.currentTarget.dataset.filter;
-                    this.applyFilter(filter);
+  const totalEl = document.getElementById('statTotal');
+  const processedEl = document.getElementById('statProcessed');
+  const remainingEl = document.getElementById('statRemaining');
+  if (totalEl) totalEl.textContent = total;
+  if (processedEl) processedEl.textContent = processed;
+  if (remainingEl) remainingEl.textContent = remaining;
+};
 
-                    filterContainer.querySelectorAll('.filter-btn').forEach(b => {
-                        b.classList.remove('active');
-                    });
-                    e.currentTarget.classList.add('active');
-                });
-            });
-        }
+const applyFilter = (manipulator, filter) => {
+  if (!manipulator) return;
+  manipulator.currentFilter = filter;
+  const cards = document.querySelectorAll('.image-card');
+  cards.forEach((card) => {
+    const index = parseInt(card.dataset.index, 10);
+    const image = manipulator.images[index];
+    if (!image) {
+      card.style.display = '';
+      return;
+    }
 
-        document.getElementById('selectUnprocessedBtn')?.addEventListener('click', () => {
-            this.selectAllUnprocessed();
+    let shouldShow = true;
+    if (filter === 'processed') {
+      shouldShow = image.hasOCRResults === true;
+    } else if (filter === 'unprocessed') {
+      shouldShow = image.hasOCRResults !== true;
+    }
+    card.style.display = shouldShow ? '' : 'none';
+  });
+
+  updateStatistics(manipulator);
+};
+
+const installRenderHooks = (manipulator) => {
+  if (!manipulator || manipulator[ENHANCED_HOOK_KEY]) return;
+  const originalRender = manipulator.renderImages?.bind(manipulator);
+  const originalCreateCard = manipulator.createImageCard?.bind(manipulator);
+
+  if (typeof originalRender === 'function') {
+    manipulator.renderImages = function patchedRenderImages(...args) {
+      const result = originalRender(...args);
+      if (typeof manipulator.applyFilter === 'function') {
+        manipulator.applyFilter(manipulator.currentFilter || 'all');
+      } else {
+        updateStatistics(manipulator);
+      }
+      return result;
+    };
+  }
+
+  if (typeof originalCreateCard === 'function') {
+    manipulator.createImageCard = function patchedCreateCard(image, index) {
+      const card = originalCreateCard(image, index);
+      if (image?.hasOCRResults) {
+        const infoSection = card.querySelector('.image-info');
+        const viewBtn = document.createElement('button');
+        viewBtn.className = 'btn-view-ocr';
+        viewBtn.innerHTML = '<i class="fas fa-eye"></i> View Results';
+        viewBtn.title = 'View OCR Results';
+        viewBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const viewer = manipulator.ocrViewer || window.ocrViewer;
+          if (viewer && typeof viewer.open === 'function') {
+            viewer.open(image.fullPath || image.relativePath);
+          }
         });
 
-        const presetDropdown = document.getElementById('presetCount');
-        const customInput = document.getElementById('customCount');
-        if (presetDropdown && customInput) {
-            presetDropdown.addEventListener('change', (e) => {
-                if (e.target.value === 'custom') {
-                    customInput.classList.remove('hidden');
-                    customInput.focus();
-                } else {
-                    customInput.classList.add('hidden');
-                }
-            });
-        }
-
-        document.getElementById('selectNextBtn')?.addEventListener('click', () => {
-            this.selectNextUnprocessed();
-        });
-    };
-
-    // Apply filter to image grid
-    IM.prototype.applyFilter = function(filter) {
-        this.currentFilter = filter;
-
-        const cards = document.querySelectorAll('.image-card');
-        cards.forEach((card, index) => {
-            const image = this.images[index];
-            if (!image) return;
-
-            let shouldShow = true;
-
-            if (filter === 'processed') {
-                shouldShow = image.hasOCRResults === true;
-            } else if (filter === 'unprocessed') {
-                shouldShow = image.hasOCRResults !== true;
-            }
-
-            card.style.display = shouldShow ? '' : 'none';
-        });
-
-        // Update statistics after filtering
-        this.updateStatistics();
-    };
-
-    // Update statistics banner
-    IM.prototype.updateStatistics = function() {
-        const total = this.images.length;
-        const processed = this.images.filter(img => img.hasOCRResults).length;
-        const remaining = total - processed;
-
-        const totalEl = document.getElementById('statTotal');
-        const processedEl = document.getElementById('statProcessed');
-        const remainingEl = document.getElementById('statRemaining');
-        if (totalEl) totalEl.textContent = total;
-        if (processedEl) processedEl.textContent = processed;
-        if (remainingEl) remainingEl.textContent = remaining;
-    };
-
-    // Select all unprocessed images
-    IM.prototype.selectAllUnprocessed = function() {
-        this.batchSelection.clearAll();
-
-        const unprocessedIds = this.images
-            .filter(img => !img.hasOCRResults)
-            .map(img => img.fullPath);
-
-        unprocessedIds.forEach(id => {
-            this.batchSelection.selectedIds.add(id);
-        });
-
-        this.batchSelection._notifyChange();
-    };
-
-    // Select next X unprocessed images
-    IM.prototype.selectNextUnprocessed = function() {
-        const presetDropdown = document.getElementById('presetCount');
-        const customInput = document.getElementById('customCount');
-        if (!presetDropdown || !customInput) return;
-
-        let count;
-        if (presetDropdown.value === 'custom') {
-            count = parseInt(customInput.value) || 20;
+        if (infoSection) {
+          infoSection.insertBefore(viewBtn, infoSection.querySelector('.image-controls'));
         } else {
-            count = parseInt(presetDropdown.value);
+          card.appendChild(viewBtn);
         }
-
-        // Clear current selection
-        this.batchSelection.clearAll();
-
-        // Find unprocessed images
-        const unprocessedImages = this.images.filter(img => !img.hasOCRResults);
-
-        // Select next X
-        const toSelect = unprocessedImages.slice(0, count);
-        toSelect.forEach(img => {
-            this.batchSelection.selectedIds.add(img.fullPath);
-        });
-
-        this.batchSelection._notifyChange();
-
-        // Show feedback
-        if (toSelect.length < count) {
-            alert(`Only ${toSelect.length} unprocessed images available (requested ${count})`);
-        }
+      }
+      return card;
     };
+  }
 
-    // View OCR results for an image
-    IM.prototype.viewOCRResults = function(imagePath) {
-        if (!this.ocrViewer || typeof this.ocrViewer.open !== 'function') {
-            console.warn('OCR Viewer is not available');
-            return;
-        }
-        this.ocrViewer.open(imagePath);
-    };
+  manipulator[ENHANCED_HOOK_KEY] = true;
+};
 
-    // Override renderImages to add statistics
-    const originalRenderImages = IM.prototype.renderImages;
-    IM.prototype.renderImages = function() {
-        originalRenderImages.call(this);
-        if (typeof this.applyFilter === 'function' && this.currentFilter) {
-            this.applyFilter(this.currentFilter);
-        } else {
-            this.updateStatistics();
-        }
-    };
+const wireFilterControls = (manipulator) => {
+  const container = document.querySelector('.batch-filter-controls');
+  if (!container || container.dataset.enhancedFilters === 'true') return;
+  container.dataset.enhancedFilters = 'true';
 
-    // Override createImageCard to add View Results button
-    const originalCreateImageCard = IM.prototype.createImageCard;
-    IM.prototype.createImageCard = function(image, index) {
-        const card = originalCreateImageCard.call(this, image, index);
+  container.querySelectorAll('.filter-btn').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const target = event.currentTarget;
+      const filter = target.dataset.filter || 'all';
+      applyFilter(manipulator, filter);
+      container.querySelectorAll('.filter-btn').forEach((btn) => btn.classList.remove('active'));
+      target.classList.add('active');
+    });
+  });
+};
 
-        // Add "View Results" button if OCR results exist
-        if (image.hasOCRResults) {
-            const infoSection = card.querySelector('.image-info');
-            const viewBtn = document.createElement('button');
-            viewBtn.className = 'btn-view-ocr';
-            viewBtn.innerHTML = '<i class="fas fa-eye"></i> View Results';
-            viewBtn.title = 'View OCR Results';
-            viewBtn.onclick = (e) => {
-                e.stopPropagation();
-                this.viewOCRResults(image.fullPath);
-            };
+const readPresetCount = () => {
+  const presetDropdown = document.getElementById('presetCount');
+  const customInput = document.getElementById('customCount');
+  if (!presetDropdown) return 20;
 
-            // Insert before controls
-            if (infoSection) {
-                const controls = infoSection.querySelector('.image-controls');
-                if (controls) {
-                    infoSection.insertBefore(viewBtn, controls);
-                } else {
-                    infoSection.appendChild(viewBtn);
-                }
-            } else {
-                card.appendChild(viewBtn);
-            }
-        }
+  if (presetDropdown.value === 'custom' && customInput) {
+    const customValue = parseInt(customInput.value, 10);
+    return Number.isFinite(customValue) && customValue > 0 ? customValue : 20;
+  }
 
-        return card;
-    };
-})();
+  const presetValue = parseInt(presetDropdown.value, 10);
+  return Number.isFinite(presetValue) && presetValue > 0 ? presetValue : 20;
+};
+
+const wireQuickSelectControls = (controller, ctx) => {
+  const selection = controller?.batchSelection;
+  if (!selection) return;
+
+  const getImages = () => resolveImages(ctx);
+  const mutateSelection = (ids) => {
+    selection.clearAll();
+    selection.selectMany(ids);
+  };
+
+  const allBtn = document.getElementById('selectUnprocessedBtn');
+  if (allBtn && allBtn.dataset.enhanced !== 'true') {
+    allBtn.dataset.enhanced = 'true';
+    allBtn.addEventListener('click', () => {
+      const ids = getImages()
+        .filter((img) => !img.hasOCRResults)
+        .map(getStableId)
+        .filter(Boolean);
+      mutateSelection(ids);
+    });
+  }
+
+  const presetDropdown = document.getElementById('presetCount');
+  const customInput = document.getElementById('customCount');
+  if (presetDropdown && customInput && presetDropdown.dataset.enhanced !== 'true') {
+    presetDropdown.dataset.enhanced = 'true';
+    presetDropdown.addEventListener('change', (event) => {
+      if (event.target.value === 'custom') {
+        customInput.classList.remove('hidden');
+        customInput.focus();
+      } else {
+        customInput.classList.add('hidden');
+      }
+    });
+  }
+
+  const nextBtn = document.getElementById('selectNextBtn');
+  if (nextBtn && nextBtn.dataset.enhanced !== 'true') {
+    nextBtn.dataset.enhanced = 'true';
+    nextBtn.addEventListener('click', () => {
+      const count = readPresetCount();
+      const ids = getImages()
+        .filter((img) => !img.hasOCRResults)
+        .slice(0, count)
+        .map(getStableId)
+        .filter(Boolean);
+      mutateSelection(ids);
+      if (ids.length < count) {
+        console.info(`Requested ${count} items but only ${ids.length} unprocessed images exist.`);
+      }
+    });
+  }
+};
+
+export function setupBatchControls(ctx = {}) {
+  const controller = ctx.controller;
+  const manipulator = ctx.imageManipulator || controller?.imageManipulator || window.imageManipulator;
+  if (!controller || !manipulator) return;
+
+  manipulator.applyFilter = (filter) => applyFilter(manipulator, filter || 'all');
+  manipulator.updateStatistics = () => updateStatistics(manipulator);
+
+  installRenderHooks(manipulator);
+  wireFilterControls(manipulator);
+  wireQuickSelectControls(controller, ctx);
+  manipulator.updateStatistics();
+}

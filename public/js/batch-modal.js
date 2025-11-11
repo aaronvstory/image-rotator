@@ -14,6 +14,11 @@ class BatchModal {
     this.createModal();
   }
 
+  _query(selector) {
+    if (!this.modal) return null;
+    return this.modal.querySelector(selector);
+  }
+
   static escapeHtml(value) {
     if (value === null || value === undefined) return '';
     return String(value).replace(/[&<>"']/g, (match) => {
@@ -133,42 +138,35 @@ class BatchModal {
    */
   bindEvents() {
     // Close button
-    document.getElementById('batchModalClose').addEventListener('click', () => {
-      this.close();
-    });
+    this._query('#batchModalClose')?.addEventListener('click', () => this.close());
 
     // Done button
-    document.getElementById('batchDoneBtn').addEventListener('click', () => {
-      this.close();
-    });
+    this._query('#batchDoneBtn')?.addEventListener('click', () => this.close());
 
     // Pause button
-    document.getElementById('batchPauseBtn').addEventListener('click', async () => {
-      if (this.progressClient) {
-        await this.progressClient.pause();
-        this.showResumeButton();
-      }
+    this._query('#batchPauseBtn')?.addEventListener('click', async () => {
+      if (!this.progressClient) return;
+      const success = await this.progressClient.pause();
+      if (success) this.showResumeButton();
     });
 
     // Resume button
-    document.getElementById('batchResumeBtn').addEventListener('click', async () => {
-      if (this.progressClient) {
-        await this.progressClient.resume();
-        this.showPauseButton();
-      }
+    this._query('#batchResumeBtn')?.addEventListener('click', async () => {
+      if (!this.progressClient) return;
+      const success = await this.progressClient.resume();
+      if (success) this.showPauseButton();
     });
 
     // Cancel button
-    document.getElementById('batchCancelBtn').addEventListener('click', async () => {
-      if (confirm('Are you sure you want to cancel this batch?')) {
-        if (this.progressClient) {
-          await this.progressClient.cancel();
-        }
-      }
+    this._query('#batchCancelBtn')?.addEventListener('click', async () => {
+      if (!this.progressClient) return;
+      const confirmCancel = confirm('Are you sure you want to cancel this batch?');
+      if (!confirmCancel) return;
+      await this.progressClient.cancel();
     });
 
     // Filter buttons scoped to modal
-    const filterButtons = this.modal.querySelectorAll('.batch-results-filter .filter-btn');
+    const filterButtons = this.modal?.querySelectorAll('.batch-results-filter .filter-btn') || [];
     filterButtons.forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -182,7 +180,7 @@ class BatchModal {
     });
 
     // Click outside to close
-    this.modal.querySelector('.batch-modal-overlay').addEventListener('click', () => {
+    this._query('.batch-modal-overlay')?.addEventListener('click', () => {
       if (this.isComplete) {
         this.close();
       }
@@ -238,15 +236,25 @@ class BatchModal {
    * @private
    */
   reset() {
-    document.getElementById('batchTotal').textContent = '0';
-    document.getElementById('batchCompleted').textContent = '0';
-    document.getElementById('batchSkipped').textContent = '0';
-    document.getElementById('batchFailed').textContent = '0';
-    document.getElementById('batchProgressFill').style.width = '0%';
-    document.getElementById('batchProgressPercent').textContent = '0%';
-    document.getElementById('batchProgressTime').textContent = 'Calculating...';
-    document.getElementById('batchResultsList').innerHTML = '';
-    document.getElementById('batchModalTitle').textContent = 'Batch OCR Processing';
+    const totalEl = this._query('#batchTotal');
+    const completedEl = this._query('#batchCompleted');
+    const skippedEl = this._query('#batchSkipped');
+    const failedEl = this._query('#batchFailed');
+    const progressFill = this._query('#batchProgressFill');
+    const progressPercent = this._query('#batchProgressPercent');
+    const progressTime = this._query('#batchProgressTime');
+    const resultsList = this._query('#batchResultsList');
+    const modalTitle = this._query('#batchModalTitle');
+
+    if (totalEl) totalEl.textContent = '0';
+    if (completedEl) completedEl.textContent = '0';
+    if (skippedEl) skippedEl.textContent = '0';
+    if (failedEl) failedEl.textContent = '0';
+    if (progressFill) progressFill.style.width = '0%';
+    if (progressPercent) progressPercent.textContent = '0%';
+    if (progressTime) progressTime.textContent = 'Calculating...';
+    if (resultsList) resultsList.innerHTML = '';
+    if (modalTitle) modalTitle.textContent = 'Batch OCR Processing';
 
     this.showPauseButton();
   }
@@ -259,15 +267,21 @@ class BatchModal {
   const { stats, items } = data;
 
     // Update stats
-    document.getElementById('batchTotal').textContent = stats.total;
-    document.getElementById('batchCompleted').textContent = stats.completed;
-    document.getElementById('batchSkipped').textContent = stats.skipped;
-    document.getElementById('batchFailed').textContent = stats.failed;
+    const totalEl = this._query('#batchTotal');
+    const completedEl = this._query('#batchCompleted');
+    const skippedEl = this._query('#batchSkipped');
+    const failedEl = this._query('#batchFailed');
+    if (totalEl) totalEl.textContent = stats.total;
+    if (completedEl) completedEl.textContent = stats.completed;
+    if (skippedEl) skippedEl.textContent = stats.skipped;
+    if (failedEl) failedEl.textContent = stats.failed;
 
     // Update progress bar
     const progress = BatchModal.calculateProgress(stats);
-    document.getElementById('batchProgressFill').style.width = `${progress}%`;
-    document.getElementById('batchProgressPercent').textContent = `${progress}%`;
+    const progressFill = this._query('#batchProgressFill');
+    const progressPercent = this._query('#batchProgressPercent');
+    if (progressFill) progressFill.style.width = `${progress}%`;
+    if (progressPercent) progressPercent.textContent = `${progress}%`;
 
     // Update time estimate
     const elapsed = Date.now() - this.startTime;
@@ -275,7 +289,8 @@ class BatchModal {
     const avgTime = completed > 0 ? elapsed / completed : 0;
     const remaining = stats.total - completed;
     const estimate = BatchModal.formatTimeEstimate(remaining, avgTime);
-    document.getElementById('batchProgressTime').textContent = estimate;
+    const progressTime = this._query('#batchProgressTime');
+    if (progressTime) progressTime.textContent = estimate;
 
     // Update results list
     if (items && items.length > 0) {
@@ -296,16 +311,18 @@ class BatchModal {
     const title = status === 'cancelled' ? 'Batch Cancelled' :
                   stats.failed > 0 ? 'Batch Completed with Errors' :
                   'Batch Completed Successfully';
-    document.getElementById('batchModalTitle').textContent = title;
+    const modalTitle = this._query('#batchModalTitle');
+    if (modalTitle) modalTitle.textContent = title;
 
     // Hide control buttons
-    document.getElementById('batchPauseBtn').classList.add('hidden');
-    document.getElementById('batchResumeBtn').classList.add('hidden');
-    document.getElementById('batchCancelBtn').classList.add('hidden');
+    this._query('#batchPauseBtn')?.classList.add('hidden');
+    this._query('#batchResumeBtn')?.classList.add('hidden');
+    this._query('#batchCancelBtn')?.classList.add('hidden');
 
     // Update progress
     this.handleUpdate(data);
-    document.getElementById('batchProgressTime').textContent = 'Complete';
+    const progressTime = this._query('#batchProgressTime');
+    if (progressTime) progressTime.textContent = 'Complete';
   }
 
   /**
@@ -322,7 +339,8 @@ class BatchModal {
    * @private
    */
   updateResultsList(items) {
-    const container = document.getElementById('batchResultsList');
+    const container = this._query('#batchResultsList');
+    if (!container) return;
     const allowedStatuses = ['pending', 'processing', 'completed', 'failed', 'skipped'];
 
     // Clear and rebuild
@@ -373,7 +391,7 @@ class BatchModal {
    */
   applyFilter(filter) {
     this.currentFilter = filter;
-    const items = document.querySelectorAll('.batch-result-item');
+    const items = this.modal ? this.modal.querySelectorAll('.batch-result-item') : [];
 
     items.forEach(item => {
       if (filter === 'all') {
@@ -390,8 +408,8 @@ class BatchModal {
    * @private
    */
   showPauseButton() {
-    document.getElementById('batchPauseBtn').classList.remove('hidden');
-    document.getElementById('batchResumeBtn').classList.add('hidden');
+    this._query('#batchPauseBtn')?.classList.remove('hidden');
+    this._query('#batchResumeBtn')?.classList.add('hidden');
   }
 
   /**
@@ -399,8 +417,8 @@ class BatchModal {
    * @private
    */
   showResumeButton() {
-    document.getElementById('batchPauseBtn').classList.add('hidden');
-    document.getElementById('batchResumeBtn').classList.remove('hidden');
+    this._query('#batchPauseBtn')?.classList.add('hidden');
+    this._query('#batchResumeBtn')?.classList.remove('hidden');
   }
 }
 

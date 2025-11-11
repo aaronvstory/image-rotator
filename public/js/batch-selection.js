@@ -154,23 +154,23 @@ class BatchSelection {
    * @param {Array} images - Array of image objects with {fullPath, filename}
    * @returns {Array} - Array of {id, path, filename} ready for batch API
    */
-  // Standardize on relativePath for selection IDs so UI and POST payload stay aligned
   getSelectedItems(images) {
     const set = this.selectedIds;
     return images
       .filter((img) => {
-        const keys = [
-          img.relativePath,
-          img.id,
-          img.fullPath
-        ].filter(Boolean);
-        return keys.some(key => set.has(key));
+        if (!img) return false;
+        if (img.fullPath && set.has(img.fullPath)) return true;
+        if (img.relativePath && set.has(img.relativePath)) return true;
+        return Boolean(img.id && set.has(img.id));
       })
-      .map((img) => ({
-        id: img.relativePath ?? img.id ?? img.fullPath,
-        path: img.fullPath,
-        filename: img.filename
-      }));
+      .map((img) => {
+        const stableId = img.fullPath || img.relativePath || img.id;
+        return {
+          id: stableId,
+          path: img.fullPath || stableId,
+          filename: img.filename
+        };
+      });
   }
 }
 

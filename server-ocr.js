@@ -231,7 +231,12 @@ Return ONLY the JSON object, no other text.`;
    * Save OCR results to JSON and TXT files
    */
   async saveOCRResults(imagePath, ocrData) {
-    await persistOCRResults(imagePath, ocrData, { outputFormat: ["json", "txt"] });
+    const imageDir = process.env.IMAGE_DIR || path.dirname(imagePath);
+    await persistOCRResults(imagePath, ocrData, {
+      outputFormat: ["json", "txt"],
+      overwrite: "overwrite",
+      imageDir
+    });
     console.log(`Saved OCR results for ${path.basename(imagePath)}`);
   }
 
@@ -301,12 +306,17 @@ Return ONLY the JSON object, no other text.`;
     while (attempt < maxAttempts) {
       attempt++;
       try {
+        const appOrigin =
+          process.env.PUBLIC_ORIGIN ||
+          process.env.APP_ORIGIN ||
+          `http://localhost:${process.env.PORT || 3001}`;
         const response = await fetch(`${this.baseURL}/chat/completions`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${this.apiKey}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "http://localhost:3001",
+            "HTTP-Referer": appOrigin,
+            Origin: appOrigin,
             "X-Title": "Image Manipulator OCR",
           },
           body: JSON.stringify(payloadBuilder()),

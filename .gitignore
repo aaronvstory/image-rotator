@@ -114,3 +114,8 @@ OCR_*.md
 # Archive directory (created by /organize)
 archive/
 archives/
+
+# Local toolchains / archives
+.tools/
+*.zip
+*.7z

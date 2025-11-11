@@ -25,7 +25,9 @@ export default class BatchController {
                     return;
                 }
                 const visible = this.imageManipulator.getVisibleImages();
-                const ids = visible.map(img => img.relativePath || img.fullPath);
+                const ids = visible
+                    .map(img => img.fullPath || img.relativePath || img.id)
+                    .filter(Boolean);
                 this.batchSelection.selectMany(ids);
             });
         }
@@ -42,7 +44,9 @@ export default class BatchController {
     }
 
     updateAvailableImages(images) {
-        this.batchSelection.setAvailableImages(images.map(img => img.relativePath || img.fullPath));
+        this.batchSelection.setAvailableImages(
+            images.map(img => img.fullPath || img.relativePath || img.id).filter(Boolean)
+        );
     }
 
     /**
@@ -50,7 +54,13 @@ export default class BatchController {
      * Mirrors original ImageManipulator.updateBatchUI logic.
      */
     updateBatchUI(selectionInfo) {
-        const count = selectionInfo.count;
+        const info = selectionInfo || {
+            selectedIds: this.batchSelection.getSelectedIds(),
+            count: this.batchSelection.getSelectedCount(),
+            allSelected: this.batchSelection.isAllSelected(),
+            someSelected: this.batchSelection.isSomeSelected()
+        };
+        const count = info.count;
 
         const selectionCountEl = document.getElementById('selectionCount');
         if (selectionCountEl) {
@@ -63,7 +73,7 @@ export default class BatchController {
         }
 
         this.imageManipulator.images.forEach(image => {
-            const selectionId = image.relativePath || image.fullPath;
+            const selectionId = image.fullPath || image.relativePath || image.id;
             const encodedSelectionId = encodeURIComponent(selectionId);
             const checkbox = document.querySelector(`input[data-image-id="${encodedSelectionId}"]`);
             if (checkbox) {

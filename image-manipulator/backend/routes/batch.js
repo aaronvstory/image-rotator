@@ -38,10 +38,11 @@ router.post('/start', async (req, res) => {
     }
 
 
+    const resolvedImageRoot = path.resolve(imageRoot);
     const sanitized = [];
     for (const item of items) {
       const abs = path.resolve(String(item.path || ''));
-      if (!(await isPathInside(abs, path.resolve(imageRoot)))) {
+      if (!(await isPathInside(abs, resolvedImageRoot))) {
         return res.status(400).json({ success: false, error: `Item path is outside image root: ${item.path}` });
       }
       sanitized.push({
@@ -51,7 +52,8 @@ router.post('/start', async (req, res) => {
       });
     }
 
-    const jobId = batchManager.createJob(sanitized, options);
+    const jobOptions = { ...options, imageDir: resolvedImageRoot };
+    const jobId = batchManager.createJob(sanitized, jobOptions);
     batchProcessor.processJob(jobId).catch((error) => {
       console.error(`Batch job ${jobId} failed:`, error);
     });
