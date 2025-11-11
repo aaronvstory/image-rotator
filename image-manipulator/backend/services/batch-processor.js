@@ -3,13 +3,7 @@ const { shouldSkipImage } = require('./skip-detector');
 const { saveOCRResults } = require('./result-saver');
 const { OCRProvider } = require('./ocr-provider');
 const { resolveImagePath } = require('../utils/path-utils');
-const { resolveImagePath } = require('../utils/path-utils');
 
-const { ITEM_STATUS, JOB_STATUS } = require('./batch-manager');
-const { shouldSkipImage } = require('./skip-detector');
-const { saveOCRResults } = require('./result-saver');
-const { OCRProvider } = require('./ocr-provider');
-const { resolveImagePath } = require('../utils/path-utils');
 
 class BatchProcessor {
   constructor(batchManager) {
@@ -231,6 +225,7 @@ class BatchProcessor {
 module.exports = {
   BatchProcessor
 };
+
 
 
 
