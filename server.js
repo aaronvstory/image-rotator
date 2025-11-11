@@ -16,9 +16,12 @@ const {
   VALID_RESULT_SUFFIXES
 } = require('./image-manipulator/backend/services/skip-detector');
 const { writeFileAtomic } = require('./image-manipulator/backend/services/result-saver');
+// Shared path utilities for validation and resolution
+const { isPathInside, resolveImagePath, validateOCRPath } = require('./image-manipulator/backend/utils/path-utils');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || 'localhost';
 
 app.use(express.static('public'));
 app.use(express.json());
@@ -84,44 +87,6 @@ async function rotateImage(p, deg) {
   if (last) throw last;
 }
 
-function isPathInside(child, parent) {
-  const relative = path.relative(parent, child);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-}
-
-function validateOCRPath(fp) {
-  if (!IMAGE_DIR) return { valid: false, error: 'No image directory configured' };
-  const root = path.resolve(path.normalize(IMAGE_DIR));
-  const abs = path.resolve(path.normalize(fp));
-  if (!isPathInside(abs, root)) {
-    return { valid: false, error: 'Path must be within image directory' };
-  }
-  const name = path.basename(abs);
-  const matchesSuffix = VALID_RESULT_SUFFIXES.some((suffix) =>
-    name.toLowerCase().endsWith(suffix)
-  );
-  if (!matchesSuffix) {
-    return { valid: false, error: 'Invalid OCR results file' };
-  }
-  return { valid: true, path: abs };
-}
-
-function resolveImagePath(imagePath) {
-  if (!IMAGE_DIR || typeof imagePath !== 'string') {
-    return null;
-  }
-
-  const root = path.resolve(path.normalize(IMAGE_DIR));
-  const normalizedInput = path.normalize(imagePath);
-  const abs = path.isAbsolute(normalizedInput)
-    ? path.resolve(normalizedInput)
-    : path.resolve(root, normalizedInput);
-
-  if (!isPathInside(abs, root)) {
-    return null;
-  }
-  return abs;
-}
 
 function listCandidatePaths(imagePath, type) {
   const candidates = getResultFileCandidates(imagePath);
@@ -312,6 +277,9 @@ app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
 
 app.use('/api/batch', batchRoutes);
 
-app.listen(PORT,'0.0.0.0',()=>{ console.log(`\nWSL Functional Base server running at http://localhost:${PORT}`); console.log('Rollback tag: v1-polished-ui'); });
+app.listen(PORT, HOST, () => {
+  console.log(`\nWSL Functional Base server running at http://${HOST}:${PORT}`);
+  console.log('Rollback tag: v1-polished-ui');
+});
 
 

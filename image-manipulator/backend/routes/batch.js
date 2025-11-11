@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const path = require('path');
+const { isPathInside } = require('../utils/path-utils');
 const fs = require('fs').promises;
 const { BatchManager } = require('../services/batch-manager');
 const { BatchProcessor } = require('../services/batch-processor');
@@ -36,15 +37,11 @@ router.post('/start', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Items array is required and must not be empty' });
     }
 
-    const isInside = (child, parent) => {
-      const rel = path.relative(parent, child);
-      return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
-    };
 
     const sanitized = [];
     for (const item of items) {
       const abs = path.resolve(String(item.path || ''));
-      if (!isInside(abs, path.resolve(imageRoot))) {
+      if (!isPathInside(abs, path.resolve(imageRoot))) {
         return res.status(400).json({ success: false, error: `Item path is outside image root: ${item.path}` });
       }
       sanitized.push({

@@ -112,6 +112,10 @@ body {
     flex-wrap: wrap;
 }
 
+.ocr-all-btn {
+    margin-left: 10px;
+}
+
 .folder-input {
     flex: 1;
     min-width: 200px;
@@ -164,6 +168,10 @@ body {
     color: #e2e8f0;
 }
 
+.preview-delay-label {
+    gap: 0.4rem;
+}
+
 .grid-slider {
     width: 120px;
     height: 6px;
@@ -171,12 +179,13 @@ body {
     background: #374151;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
     cursor: pointer;
 }
 
 .grid-slider::-webkit-slider-thumb {
-    appearance: none; /* added standard property */
     -webkit-appearance: none;
+    appearance: none;
     width: 18px;
     height: 18px;
     border-radius: 50%;
@@ -200,6 +209,16 @@ body {
     font-size: 0.85rem;
     color: #60a5fa;
     min-width: 45px;
+}
+
+.hover-delay-slider {
+    width: 140px;
+}
+
+.hover-delay-value {
+    min-width: 46px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Hover Delay Controls */
@@ -228,6 +247,7 @@ body {
         #374151 100%);
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
     cursor: pointer;
     transition: background 0.3s ease;
 }
@@ -590,8 +610,8 @@ body {
     bottom: 0;
     background: rgba(17, 24, 39, 0.7);
     border-radius: 8px;
-    backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
 }
 
 .image-card.processing .btn-rotate {
@@ -611,8 +631,8 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
   z-index: 10000;
 }
 .ocr-inspector {
@@ -770,8 +790,8 @@ body {
     transform: translateY(-10px) scale(0.95);
     transition: all 0.25s ease;
     pointer-events: none;
-    backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(15px);
     z-index: 10000;
 }
 
