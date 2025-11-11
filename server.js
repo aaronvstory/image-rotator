@@ -20,7 +20,7 @@ const { writeFileAtomic } = require('./image-manipulator/backend/services/result
 const { isPathInside, resolveImagePath, validateOCRPath } = require('./image-manipulator/backend/utils/path-utils');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || 'localhost';
 
 app.use(express.static('public'));

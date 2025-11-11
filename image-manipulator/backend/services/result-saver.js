@@ -68,16 +68,30 @@ async function saveTxtVariants(paths, data) {
 
 async function saveOCRResults(imagePath, result, options = {}) {
   const formats = options.outputFormat || ['json', 'txt'];
+  const overwriteMode = options.overwrite === 'suffix' ? 'suffix' : 'skip';
   const files = {};
+
+  const selectTargets = (paths = []) => {
+    if (!paths.length) return [];
+    return overwriteMode === 'suffix'
+      ? [paths[paths.length - 1]]
+      : [paths[0]];
+  };
 
   if (formats.includes('json')) {
     const jsonPaths = buildPaths(imagePath, JSON_SUFFIXES);
-    files.json = await saveJSONVariants(jsonPaths, result);
+    const targets = selectTargets(jsonPaths);
+    if (targets.length > 0) {
+      files.json = await saveJSONVariants(targets, result);
+    }
   }
 
   if (formats.includes('txt')) {
     const txtPaths = buildPaths(imagePath, TXT_SUFFIXES);
-    files.txt = await saveTxtVariants(txtPaths, result);
+    const targets = selectTargets(txtPaths);
+    if (targets.length > 0) {
+      files.txt = await saveTxtVariants(targets, result);
+    }
   }
 
   return { files };

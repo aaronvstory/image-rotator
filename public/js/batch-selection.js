@@ -158,9 +158,16 @@ class BatchSelection {
   getSelectedItems(images) {
     const set = this.selectedIds;
     return images
-      .filter(img => set.has(img.relativePath ?? img.fullPath))
+      .filter((img) => {
+        const keys = [
+          img.relativePath,
+          img.id,
+          img.fullPath
+        ].filter(Boolean);
+        return keys.some(key => set.has(key));
+      })
       .map((img) => ({
-        id: img.relativePath ?? img.fullPath,
+        id: img.relativePath ?? img.id ?? img.fullPath,
         path: img.fullPath,
         filename: img.filename
       }));

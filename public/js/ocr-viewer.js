@@ -61,11 +61,14 @@ class OCRViewer {
     });
 
     // Click outside to close
-    this.modal.querySelector('.ocr-viewer-overlay').addEventListener('click', () => {
-      if (!this.hasChanges || confirm('You have unsaved changes. Close anyway?')) {
-        this.close();
-      }
-    });
+    const overlayEl = this.modal ? this.modal.querySelector('.ocr-viewer-overlay') : null;
+    if (overlayEl) {
+      overlayEl.addEventListener('click', () => {
+        if (!this.hasChanges || confirm('You have unsaved changes. Close anyway?')) {
+          this.close();
+        }
+      });
+    }
   }
 
   async open(imagePath) {

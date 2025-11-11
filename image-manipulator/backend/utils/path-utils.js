@@ -8,8 +8,10 @@ const fs = require('fs').promises;
  * @returns {Promise<string|null>}
  */
 async function toRealOrResolved(targetPath) {
-  if (!targetPath) return null;
-  const normalized = path.resolve(path.normalize(targetPath));
+  if (typeof targetPath !== 'string') return null;
+  const trimmed = targetPath.trim();
+  if (!trimmed) return null;
+  const normalized = path.resolve(path.normalize(trimmed));
   try {
     return await fs.realpath(normalized);
   } catch (error) {
@@ -56,6 +58,7 @@ async function resolveImagePath(imagePath, imageDir) {
       ? normalizedInput
       : path.resolve(root, normalizedInput);
     const abs = await toRealOrResolved(candidate);
+    if (!abs) return null;
     return (await isPathInside(abs, root)) ? abs : null;
   } catch {
     return null;
