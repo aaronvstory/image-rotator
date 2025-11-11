@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Manipulator - WSL Feature Build</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/theme-patches.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
@@ -57,7 +58,10 @@
                             <i class="fas fa-th"></i>
                             Grid Size:
                         </label>
-                        <input type="range" id="gridSize" class="grid-slider" min="100" max="400" value="180" step="20">
+                        <div class="grid-size-control">
+                            <input type="range" id="gridSize" class="grid-slider" min="100" max="400" value="180" step="20">
+                            <input type="number" id="gridSizeNumber" class="grid-number-input num-input" min="100" max="400" step="20" value="180" aria-label="Grid size in pixels">
+                        </div>
                         <span id="gridSizeValue" class="grid-value">180px</span>
                     </div>
                     <div class="hover-controls">
@@ -118,6 +122,10 @@
                         <i class="fas fa-check-double"></i>
                         Select All
                     </button>
+                    <button id="selectPageBtn" class="btn btn-secondary">
+                        <i class="fas fa-layer-group"></i>
+                        Select Current Page
+                    </button>
                     <button id="selectUnprocessedBtn" class="btn btn-secondary">
                         <i class="fas fa-clock"></i>
                         Select All Unprocessed
@@ -155,6 +163,20 @@
                     </button>
                 </div>
             </div>
+        </div>
+
+        <div class="pager-controls hidden" id="pagerControls">
+            <button id="pagerPrev" class="btn btn-secondary" type="button" disabled>
+                <i class="fas fa-chevron-left"></i>
+                Prev
+            </button>
+            <input id="pagerPage" type="number" min="1" value="1" class="num-input small" aria-label="Current page">
+            <button id="pagerNext" class="btn btn-secondary" type="button" disabled>
+                Next
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <input id="pageSizeInput" type="number" min="50" max="500" step="50" value="150" class="num-input small" aria-label="Items per page">
+            <span id="pagerInfo" class="pager-info"></span>
         </div>
 
         <!-- Main Content -->
@@ -243,7 +265,7 @@
     <script src="js/batch-progress.js"></script>
     <script src="js/batch-modal.js"></script>
     <script src="js/ocr-viewer.js"></script>
-    <script src="script.js"></script>
-    <script src="js/enhanced-features.js"></script>
+    <script type="module" src="script.js"></script>
+    <script src="js/enhanced-features.js" defer></script>
 </body>
 </html>

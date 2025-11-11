@@ -41,7 +41,7 @@ router.post('/start', async (req, res) => {
     const sanitized = [];
     for (const item of items) {
       const abs = path.resolve(String(item.path || ''));
-      if (!isPathInside(abs, path.resolve(imageRoot))) {
+      if (!(await isPathInside(abs, path.resolve(imageRoot)))) {
         return res.status(400).json({ success: false, error: `Item path is outside image root: ${item.path}` });
       }
       sanitized.push({
@@ -193,4 +193,3 @@ router.delete('/job/:jobId', (req, res) => {
 });
 
 module.exports = router;
-

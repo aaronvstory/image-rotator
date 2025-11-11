@@ -1,24 +1,24 @@
 // Image Manipulator v2.0 - Client-side JavaScript Application
+import BatchController from './js/controllers/BatchController.js';
+import Pager from './js/pager.js';
 class ImageManipulator {
     constructor() {
         this.images = [];
         this.currentDirectory = '';
         this.lastRotationTime = {};
         this.rotationCooldown = 3000; // 3 seconds cooldown per image
+        this._errorHideTimer = null;
         const storedHoverDelay = parseInt(localStorage.getItem('hoverDelayMs'), 10);
         this.hoverDelayMs = Number.isFinite(storedHoverDelay) ? storedHoverDelay : 2000;
         this.currentFilter = 'all'; // all, processed, unprocessed
+        this.pager = new Pager(Number(localStorage.getItem('pageSize')) || 150);
 
-        // Batch processing components
-        this.batchSelection = new BatchSelection();
-        this.batchModal = new BatchModal();
-        this.batchProgressClient = new BatchProgress();
+        // OCR viewer
         this.ocrViewer = new OCRViewer();
-
-        // Make OCR viewer globally accessible for copy buttons
         window.ocrViewer = this.ocrViewer;
 
-        this._batchStartInFlight = false;
+        // Batch controller
+        this.batchController = new BatchController(this);
         this.init();
     }
 
@@ -26,7 +26,8 @@ class ImageManipulator {
         this.bindEvents();
         this.loadCurrentDirectory();
         this.setupGridControls();
-        this.setupBatchControls();
+        this.setupPaginationControls();
+        this.batchController.init();
     }
 
     bindEvents() {
@@ -57,151 +58,50 @@ class ImageManipulator {
         }
     }
 
-    setupBatchControls() {
-        if (!this.batchSelection) return;
 
-        this.batchSelection.onChange((selectionInfo) => {
-            this.updateBatchUI(selectionInfo);
-        });
 
-        const selectAllBtn = document.getElementById('selectAllBtn');
-        if (selectAllBtn) {
-            selectAllBtn.addEventListener('click', () => this.batchSelection.selectAll());
-        }
-
-        const clearSelectionBtn = document.getElementById('clearSelectionBtn');
-        if (clearSelectionBtn) {
-            clearSelectionBtn.addEventListener('click', () => this.batchSelection.clearAll());
-        }
-
-        const startBatchBtn = document.getElementById('startBatchOCRBtn');
-        if (startBatchBtn) {
-            startBatchBtn.addEventListener('click', () => this.startBatchOCR());
-        }
-    }
-
-    updateBatchUI(selectionInfo) {
-        const count = selectionInfo.count;
-
-        // Update selection count
-        const selectionCountEl = document.getElementById('selectionCount');
-        if (selectionCountEl) {
-            selectionCountEl.textContent = count;
-        }
-
-        // Enable/disable Start Batch button
-        const startBtn = document.getElementById('startBatchOCRBtn');
-        if (startBtn) {
-            startBtn.disabled = count === 0;
-        }
-
-        // Update all checkboxes
-        this.images.forEach(image => {
-            const checkbox = document.querySelector(`input[data-image-path="${encodeURIComponent(image.fullPath)}"]`);
-            if (checkbox) {
-                checkbox.checked = this.batchSelection.isSelected(image.fullPath);
-            }
-        });
-    }
-
-    async startBatchOCR() {
-        if (this._batchStartInFlight) {
-            return;
-        }
-
-        if (!this.batchSelection || !this.batchModal || !this.batchProgressClient) {
-            this.showError('Batch processing modules not initialized yet. Please refresh and try again.');
-            return;
-        }
-
-        const startBtn = document.getElementById('startBatchOCRBtn');
-        this._batchStartInFlight = true;
-        if (startBtn) startBtn.disabled = true;
-
-        const resetState = () => {
-            this._batchStartInFlight = false;
-            if (startBtn) {
-                const selectedCount = this.batchSelection ? this.batchSelection.getSelectedCount() : 0;
-                startBtn.disabled = selectedCount === 0;
-            }
-        };
-
-        const selectedItems = this.batchSelection.getSelectedItems(this.images);
-
-        if (selectedItems.length === 0) {
-            this.showError('No images selected');
-            resetState();
-            return;
-        }
-
-        try {
-            // Create batch job
-            const response = await fetch('/api/batch/start', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    items: selectedItems,
-                    options: {
-                        chunkSize: 50,
-                        overwrite: 'skip'
-                    }
-                })
-            });
-
-            if (!response.ok) {
-                let serverMessage = '';
-                try {
-                    const errorPayload = await response.json();
-                    serverMessage = errorPayload?.error || JSON.stringify(errorPayload);
-                } catch (parseError) {
-                    try {
-                        serverMessage = await response.text();
-                    } catch {}
-                }
-                const message = `Failed to start batch OCR (HTTP ${response.status}): ${serverMessage || response.statusText || 'Unknown error'}`;
-                console.error(message);
-                this.showError(message);
-                return;
-            }
-
-            const data = await response.json();
-
-            if (data.success) {
-                // Open modal and start progress tracking
-                this.batchModal.open(data.jobId, this.batchProgressClient);
-            } else {
-                this.showError('Failed to start batch OCR: ' + data.error);
-            }
-        } catch (error) {
-            console.error('Error starting batch OCR:', error);
-            this.showError('Failed to start batch OCR');
-        } finally {
-            resetState();
-        }
-    }
 
     setupGridControls() {
         const gridSlider = document.getElementById('gridSize');
         const gridValue = document.getElementById('gridSizeValue');
+        const gridNumber = document.getElementById('gridSizeNumber');
         const imageGrid = document.getElementById('imageGrid');
 
         if (!gridSlider || !gridValue || !imageGrid) {
             return;
         }
 
+        const clampSize = (value) => {
+            const min = Number(gridSlider.min) || 100;
+            const max = Number(gridSlider.max) || 400;
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) {
+                return Number(gridSlider.value);
+            }
+            return Math.max(min, Math.min(max, Math.round(numeric)));
+        };
+
         const applyGridSize = (size) => {
-            imageGrid.style.setProperty('--grid-size', `${size}px`);
-            gridValue.textContent = `${size}px`;
+            const nextSize = clampSize(size);
+            imageGrid.style.setProperty('--grid-size', `${nextSize}px`);
+            gridValue.textContent = `${nextSize}px`;
+            gridSlider.value = String(nextSize);
+            if (gridNumber) {
+                gridNumber.value = String(nextSize);
+            }
         };
 
         applyGridSize(gridSlider.value);
 
         gridSlider.addEventListener('input', (e) => {
-            const size = e.target.value;
-            applyGridSize(size);
+            applyGridSize(e.target.value);
         });
+        if (gridNumber) {
+            gridNumber.value = gridSlider.value;
+            gridNumber.addEventListener('input', (e) => {
+                applyGridSize(e.target.value);
+            });
+        }
 
         // Setup hover delay controls
         const hoverSlider = document.getElementById('hoverDelayRange') || document.getElementById('hoverDelay');
@@ -243,6 +143,52 @@ class ImageManipulator {
         }
 
         updateHoverDelay(this.hoverDelayMs);
+    }
+
+    setupPaginationControls() {
+        if (!this.pager) return;
+
+        const pagerPrev = document.getElementById('pagerPrev');
+        const pagerNext = document.getElementById('pagerNext');
+        const pagerPage = document.getElementById('pagerPage');
+        const pageSizeInput = document.getElementById('pageSizeInput');
+
+        if (pageSizeInput) {
+            pageSizeInput.value = String(this.pager.pageSize);
+            pageSizeInput.addEventListener('change', () => {
+                this.pager.setPageSize(Number(pageSizeInput.value) || this.pager.pageSize);
+                localStorage.setItem('pageSize', String(this.pager.pageSize));
+                this.renderImages();
+            });
+        }
+
+        if (pagerPrev) {
+            pagerPrev.addEventListener('click', () => {
+                this.pager.prev();
+                this.renderImages();
+            });
+        }
+
+        if (pagerNext) {
+            pagerNext.addEventListener('click', () => {
+                this.pager.next();
+                this.renderImages();
+            });
+        }
+
+        if (pagerPage) {
+            pagerPage.value = String(this.pager.page);
+            const handleChange = () => {
+                this.pager.goTo(Number(pagerPage.value) || 1);
+                this.renderImages();
+            };
+            pagerPage.addEventListener('change', handleChange);
+            pagerPage.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    handleChange();
+                }
+            });
+        }
     }
 
     async loadCurrentDirectory() {
@@ -322,6 +268,10 @@ class ImageManipulator {
                 this.currentDirectory = data.directory;
                 this.updateCurrentFolderDisplay();
                 this.updateStats(data.count);
+                if (this.pager) {
+                    this.pager.goTo(1);
+                    this.pager.setTotal(this.images.length);
+                }
                 this.renderImages();
             } else {
                 this.showError('Failed to load images: ' + data.error);
@@ -376,9 +326,12 @@ class ImageManipulator {
         }
         errorEl.classList.remove('hidden');
 
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
+        if (this._errorHideTimer) {
+            clearTimeout(this._errorHideTimer);
+        }
+        this._errorHideTimer = setTimeout(() => {
             errorEl.classList.add('hidden');
+            this._errorHideTimer = null;
         }, 5000);
     }
 
@@ -429,6 +382,7 @@ class ImageManipulator {
         const grid = document.getElementById('imageGrid');
         const emptyState = document.getElementById('emptyState');
         const batchControls = document.getElementById('batchControlsSection');
+        const pagerControls = document.getElementById('pagerControls');
 
         if (!grid) return;
 
@@ -440,6 +394,7 @@ class ImageManipulator {
             if (batchControls) {
                 batchControls.classList.add('hidden');
             }
+            pagerControls?.classList.add('hidden');
             return;
         }
 
@@ -449,14 +404,17 @@ class ImageManipulator {
         }
         grid.innerHTML = '';
 
-        // Initialize batch selection with image IDs
-        if (this.batchSelection) {
-            const imageIds = this.images.map(img => img.fullPath);
-            this.batchSelection.setAvailableImages(imageIds);
+        this.batchController.updateAvailableImages(this.images);
+        if (this.pager) {
+            this.pager.setTotal(this.images.length);
         }
 
-        this.images.forEach((image, index) => {
-            const imageCard = this.createImageCard(image, index);
+        const visible = this.getVisibleImages();
+        const startIndex = this.pager ? (this.pager.page - 1) * this.pager.pageSize : 0;
+
+        visible.forEach((image, indexOnPage) => {
+            const absoluteIndex = startIndex + indexOnPage;
+            const imageCard = this.createImageCard(image, absoluteIndex);
             grid.appendChild(imageCard);
         });
 
@@ -464,6 +422,42 @@ class ImageManipulator {
         if (batchControls) {
             batchControls.classList.remove('hidden');
         }
+        pagerControls?.classList.remove('hidden');
+        this.updatePagerUI();
+    }
+
+    updatePagerUI() {
+        if (!this.pager) return;
+
+        const pagerInfo = document.getElementById('pagerInfo');
+        const pagerPrev = document.getElementById('pagerPrev');
+        const pagerNext = document.getElementById('pagerNext');
+        const pagerPage = document.getElementById('pagerPage');
+        const pageSizeInput = document.getElementById('pageSizeInput');
+
+        if (pagerPrev) {
+            pagerPrev.disabled = !this.pager.canPrev();
+        }
+        if (pagerNext) {
+            pagerNext.disabled = !this.pager.canNext();
+        }
+        if (pagerPage) {
+            pagerPage.value = String(this.pager.page);
+            pagerPage.max = String(this.pager.getPageCount());
+        }
+        if (pageSizeInput) {
+            pageSizeInput.value = String(this.pager.pageSize);
+        }
+        if (pagerInfo) {
+            pagerInfo.textContent = `Page ${this.pager.page} of ${this.pager.getPageCount()} • ${this.images.length} images`;
+        }
+    }
+
+    getVisibleImages() {
+        if (!this.pager) {
+            return this.images;
+        }
+        return this.pager.getVisible(this.images);
     }
 
     createImageCard(image, index) {
@@ -472,8 +466,9 @@ class ImageManipulator {
         card.dataset.index = index;
 
         const thumbnailUrl = `/api/thumbnail/${encodeURIComponent(image.relativePath)}?t=${Date.now()}`;
-        const isSelected = this.batchSelection ? this.batchSelection.isSelected(image.fullPath) : false;
-        const encodedPath = encodeURIComponent(image.fullPath);
+        const selectionId = image.relativePath || image.fullPath;
+        const isSelected = this.batchController.batchSelection.isSelected(selectionId);
+        const encodedId = encodeURIComponent(selectionId);
 
         // Add OCR processed badge if results exist
         const ocrBadge = image.hasOCRResults ? `
@@ -487,7 +482,7 @@ class ImageManipulator {
             <div class="batch-checkbox-container">
                 <input type="checkbox"
                        class="batch-checkbox"
-                       data-image-path="${encodedPath}"
+                       data-image-id="${encodedId}"
                        ${isSelected ? 'checked' : ''}>
             </div>
             ${ocrBadge}
@@ -515,24 +510,38 @@ class ImageManipulator {
             </div>
         `;
 
-        const checkbox = card.querySelector('.batch-checkbox');
-        if (checkbox) {
-            checkbox.addEventListener('change', () => {
-                const decodedPath = decodeURIComponent(checkbox.dataset.imagePath || '');
-                this.toggleImageSelection(decodedPath);
-            });
-        }
 
         // Add hover preview functionality
         this.setupHoverPreview(card, image);
+        this.batchController.processImageCard(card, image);
 
         return card;
     }
 
-    toggleImageSelection(imagePath) {
-        if (this.batchSelection && imagePath) {
-            this.batchSelection.toggleImage(imagePath);
+    updateBatchUI(selectionInfo) {
+        const count = selectionInfo.count;
+
+        // Update selection count
+        const selectionCountEl = document.getElementById('selectionCount');
+        if (selectionCountEl) {
+            selectionCountEl.textContent = count;
         }
+
+        // Enable/disable Start Batch button
+        const startBtn = document.getElementById('startBatchOCRBtn');
+        if (startBtn) {
+            startBtn.disabled = count === 0;
+        }
+
+        // Update all checkboxes
+        this.images.forEach(image => {
+            const selectionId = image.relativePath || image.fullPath;
+            const encodedSelectionId = encodeURIComponent(selectionId);
+            const checkbox = document.querySelector(`input[data-image-id="${encodedSelectionId}"]`);
+            if (checkbox) {
+                checkbox.checked = this.batchController.batchSelection.isSelected(selectionId);
+            }
+        });
     }
 
     async rotateImage(index, degrees) {
@@ -867,6 +876,7 @@ function escapeHtml(text) {
 }
 
 // Initialize the app
+window.ImageManipulator = ImageManipulator;
 const imageManipulator = new ImageManipulator();
 window.imageManipulator = imageManipulator;
 

@@ -4,9 +4,13 @@
 
 // Extend ImageManipulator with new methods
 (function() {
-    const originalSetupBatchControls = ImageManipulator.prototype.setupBatchControls;
+    const IM = window.ImageManipulator;
+    if (!IM) return;
 
-    ImageManipulator.prototype.setupBatchControls = function() {
+    // Extend ImageManipulator with new methods
+    const originalSetupBatchControls = IM.prototype.setupBatchControls;
+
+    IM.prototype.setupBatchControls = function() {
         // Call original setup
         if (originalSetupBatchControls) {
             originalSetupBatchControls.call(this);
@@ -51,7 +55,7 @@
     };
 
     // Apply filter to image grid
-    ImageManipulator.prototype.applyFilter = function(filter) {
+    IM.prototype.applyFilter = function(filter) {
         this.currentFilter = filter;
 
         const cards = document.querySelectorAll('.image-card');
@@ -75,7 +79,7 @@
     };
 
     // Update statistics banner
-    ImageManipulator.prototype.updateStatistics = function() {
+    IM.prototype.updateStatistics = function() {
         const total = this.images.length;
         const processed = this.images.filter(img => img.hasOCRResults).length;
         const remaining = total - processed;
@@ -89,7 +93,7 @@
     };
 
     // Select all unprocessed images
-    ImageManipulator.prototype.selectAllUnprocessed = function() {
+    IM.prototype.selectAllUnprocessed = function() {
         this.batchSelection.clearAll();
 
         const unprocessedIds = this.images
@@ -104,7 +108,7 @@
     };
 
     // Select next X unprocessed images
-    ImageManipulator.prototype.selectNextUnprocessed = function() {
+    IM.prototype.selectNextUnprocessed = function() {
         const presetDropdown = document.getElementById('presetCount');
         const customInput = document.getElementById('customCount');
         if (!presetDropdown || !customInput) return;
@@ -137,7 +141,7 @@
     };
 
     // View OCR results for an image
-    ImageManipulator.prototype.viewOCRResults = function(imagePath) {
+    IM.prototype.viewOCRResults = function(imagePath) {
         if (!this.ocrViewer || typeof this.ocrViewer.open !== 'function') {
             console.warn('OCR Viewer is not available');
             return;
@@ -146,8 +150,8 @@
     };
 
     // Override renderImages to add statistics
-    const originalRenderImages = ImageManipulator.prototype.renderImages;
-    ImageManipulator.prototype.renderImages = function() {
+    const originalRenderImages = IM.prototype.renderImages;
+    IM.prototype.renderImages = function() {
         originalRenderImages.call(this);
         if (typeof this.applyFilter === 'function' && this.currentFilter) {
             this.applyFilter(this.currentFilter);
@@ -157,8 +161,8 @@
     };
 
     // Override createImageCard to add View Results button
-    const originalCreateImageCard = ImageManipulator.prototype.createImageCard;
-    ImageManipulator.prototype.createImageCard = function(image, index) {
+    const originalCreateImageCard = IM.prototype.createImageCard;
+    IM.prototype.createImageCard = function(image, index) {
         const card = originalCreateImageCard.call(this, image, index);
 
         // Add "View Results" button if OCR results exist

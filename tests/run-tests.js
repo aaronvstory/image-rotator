@@ -18,12 +18,13 @@ function log(msg) { console.log(msg); }
       console.error(`Test ${file} FAILED:`, e);
     }
   }
-  setTimeout(() => { // allow any async IIFEs to finish
+  process.on('beforeExit', () => {
     if (failures) {
       console.error(`\n${failures} test file(s) failed.`);
-      process.exit(1);
+      process.exitCode = 1;
     } else {
       console.log('\nAll tests passed.');
+      process.exitCode = 0;
     }
-  }, 500);
+  });
 })();

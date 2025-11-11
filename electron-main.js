@@ -4,7 +4,10 @@ const { spawn } = require('child_process');
 
 let mainWindow;
 let serverProcess;
-const SERVER_PORT = 3001;
+// Resolve server port/host from env so Electron builds can override defaults (0.0.0.0 may be required outside localhost).
+const SERVER_PORT = Number(process.env.SERVER_PORT || process.env.PORT || process.env.APP_PORT || 3001);
+const SERVER_HOST = process.env.HOST || process.env.SERVER_HOST || 'localhost';
+const WINDOW_HOST = SERVER_HOST === '0.0.0.0' ? '127.0.0.1' : SERVER_HOST;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -22,10 +25,10 @@ function createWindow() {
   // Start Express server
   startServer();
 
-  // Load the app after server starts
+  // Load the app after server starts. If you add a readiness signal later, replace this timeout.
   setTimeout(() => {
-    mainWindow.loadURL(`http://localhost:${SERVER_PORT}`);
-  }, 2000);
+    mainWindow.loadURL(`http://${WINDOW_HOST}:${SERVER_PORT}`);
+  }, 1500);
 
   // Open DevTools in development
   if (process.env.NODE_ENV === 'development') {
@@ -42,7 +45,11 @@ function startServer() {
   console.log('Starting Express server...');
 
   serverProcess = spawn('node', ['server.js'], {
-    env: { ...process.env, PORT: SERVER_PORT },
+    env: {
+      ...process.env,
+      PORT: String(SERVER_PORT),
+      HOST: SERVER_HOST
+    },
     stdio: 'inherit'
   });
 

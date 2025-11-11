@@ -1,0 +1,75 @@
+/* Lightweight overrides for rotate controls, badges, and pagination */
+
+.image-card .image-controls {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.image-card:hover .image-controls {
+  opacity: 1;
+}
+
+.btn-rotate {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 6px;
+  line-height: 0;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-rotate:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.ocr-processed-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(40, 167, 69, 0.18);
+  color: #d4f8df;
+  border: 1px solid rgba(40, 167, 69, 0.4);
+}
+
+.pager-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.pager-controls .pager-info {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.num-input {
+  width: 90px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+}
+
+.num-input.small {
+  width: 70px;
+}
+
+.grid-size-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

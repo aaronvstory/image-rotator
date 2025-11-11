@@ -110,7 +110,7 @@ app.get('/api/thumbnail/:imagePath(*)', async (req, res) => {
     return res.status(400).json({ error: 'Image directory not set' });
   }
   const full = path.resolve(path.join(IMAGE_DIR, req.params.imagePath));
-  if (!isPathInside(full, path.resolve(IMAGE_DIR))) {
+  if (!(await isPathInside(full, path.resolve(IMAGE_DIR)))) {
     return res.status(403).json({ error: 'Image not within configured directory' });
   }
   try {
@@ -128,7 +128,7 @@ app.get('/api/preview/:imagePath(*)', async (req, res) => {
     return res.status(400).json({ error: 'Image directory not set' });
   }
   const full = path.resolve(path.join(IMAGE_DIR, req.params.imagePath));
-  if (!isPathInside(full, path.resolve(IMAGE_DIR))) {
+  if (!(await isPathInside(full, path.resolve(IMAGE_DIR)))) {
     return res.status(403).json({ error: 'Image not within configured directory' });
   }
   try {
@@ -150,7 +150,7 @@ app.post('/api/rotate', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Missing imagePath or degrees' });
   }
   const full = path.resolve(path.join(IMAGE_DIR, imagePath));
-  if (!isPathInside(full, path.resolve(IMAGE_DIR))) {
+  if (!(await isPathInside(full, path.resolve(IMAGE_DIR)))) {
     return res.status(403).json({ success: false, error: 'Image not within configured directory' });
   }
   try {
@@ -173,7 +173,7 @@ app.get('/api/ocr-results', async (req, res) => {
 
   try {
     if (filePath) {
-      const validation = validateOCRPath(filePath);
+      const validation = await validateOCRPath(filePath, IMAGE_DIR, VALID_RESULT_SUFFIXES);
       if (!validation.valid) {
         return res.status(403).json({ error: validation.error });
       }
@@ -186,7 +186,7 @@ app.get('/api/ocr-results', async (req, res) => {
       return res.json(parsed);
     }
 
-    const resolvedImagePath = resolveImagePath(imagePathParam);
+    const resolvedImagePath = await resolveImagePath(imagePathParam, IMAGE_DIR);
     if (!resolvedImagePath) {
       return res.status(403).json({ error: 'Image not within configured directory' });
     }
@@ -220,7 +220,7 @@ app.post('/api/ocr-results/save', async (req, res) => {
   let targets = [];
 
   if (imagePath) {
-    const resolvedImagePath = resolveImagePath(imagePath);
+    const resolvedImagePath = await resolveImagePath(imagePath, IMAGE_DIR);
     if (!resolvedImagePath) {
       return res.status(403).json({ error: 'Image not within configured directory' });
     }
@@ -229,7 +229,7 @@ app.post('/api/ocr-results/save', async (req, res) => {
       return res.status(400).json({ error: 'No valid OCR result targets derived from image path' });
     }
   } else if (fp) {
-    const validation = validateOCRPath(fp);
+    const validation = await validateOCRPath(fp, IMAGE_DIR, VALID_RESULT_SUFFIXES);
     if (!validation.valid) {
       return res.status(403).json({ error: validation.error });
     }
@@ -263,7 +263,7 @@ app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
   if (!IMAGE_DIR) return res.json({ success: true, has: false });
   const rootDir = path.resolve(path.normalize(IMAGE_DIR));
   const requestedPath = path.resolve(path.join(IMAGE_DIR, req.params.imagePath || ''));
-  if (!isPathInside(requestedPath, rootDir)) {
+  if (!(await isPathInside(requestedPath, rootDir))) {
     return res.status(403).json({ success: false, error: 'Image not within configured directory' });
   }
   try {

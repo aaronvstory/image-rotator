@@ -53,6 +53,23 @@ class BatchSelection {
   }
 
   /**
+   * Select many IDs at once (used for page-level selections)
+   * @param {Array<string>} ids
+   */
+  selectMany(ids = []) {
+    let changed = false;
+    ids.forEach(id => {
+      if (id && !this.selectedIds.has(id)) {
+        this.selectedIds.add(id);
+        changed = true;
+      }
+    });
+    if (changed) {
+      this._notifyChange();
+    }
+  }
+
+  /**
    * Select a range of images
    * @param {number} startIndex
    * @param {number} endIndex
@@ -137,12 +154,13 @@ class BatchSelection {
    * @param {Array} images - Array of image objects with {fullPath, filename}
    * @returns {Array} - Array of {id, path, filename} ready for batch API
    */
+  // Standardize on relativePath for selection IDs so UI and POST payload stay aligned
   getSelectedItems(images) {
     const set = this.selectedIds;
     return images
-      .filter(img => set.has(img.id ?? img.fullPath))
-      .map((img, index) => ({
-        id: img.id ?? img.fullPath,
+      .filter(img => set.has(img.relativePath ?? img.fullPath))
+      .map((img) => ({
+        id: img.relativePath ?? img.fullPath,
         path: img.fullPath,
         filename: img.filename
       }));
