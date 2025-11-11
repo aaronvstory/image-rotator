@@ -3,12 +3,16 @@
  */
 
 class BatchProgress {
-  constructor() {
+  constructor(fetchImpl = window.fetch.bind(window)) {
     this.eventSource = null;
     this.jobId = null;
     this.onUpdate = null;
     this.onComplete = null;
     this.onError = null;
+    this._fetch = fetchImpl;
+    this._pollTimer = null;
+    this._pollIntervalMs = 1500;
+    this._maxPollIntervalMs = 10000;
   }
 
   /**
@@ -35,80 +39,104 @@ class BatchProgress {
     this.onComplete = callbacks.onComplete;
     this.onError = callbacks.onError;
 
-    // Create SSE connection
+    // Reset polling cadence each time we connect
+    this._pollIntervalMs = 1500;
+
     const url = `/api/batch/progress/${encodeURIComponent(this.jobId)}?includeItems=true`;
-    this.eventSource = new EventSource(url);
+    try {
+      this.eventSource = new EventSource(url);
 
-    // Handle job updates (server emits "job-update" events)
-    this.eventSource.addEventListener('job-update', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        this._handleUpdate(data);
-      } catch (error) {
-        console.error('Error parsing job update:', error);
-      }
-    });
+      this.eventSource.addEventListener('job-update', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this._handleUpdate(data);
+        } catch (error) {
+          console.error('Error parsing job update:', error);
+          this._safeError(error);
+        }
+      });
 
-    // Handle connection errors
-    this.eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error);
+      this.eventSource.onerror = (error) => {
+        console.error('SSE connection error:', error);
+        this._safeError('Connection interrupted. Falling back to polling…');
+        this._startPolling();
+      };
 
-      // Check if job is complete (connection closed intentionally)
-      if (this.eventSource.readyState === EventSource.CLOSED) {
-        this._checkJobStatus();
-      } else {
-        this._notifyError('Connection error. Retrying...');
-      }
-    };
-
-    // Handle connection open
-    this.eventSource.onopen = () => {
-      console.log(`Connected to batch progress for job ${jobId}`);
-    };
+      this.eventSource.onopen = () => {
+        console.log(`Connected to batch progress for job ${jobId}`);
+      };
+    } catch (error) {
+      console.error('Failed to initialize SSE connection:', error);
+      this._safeError('Unable to open live progress stream. Using polling instead.');
+      this._startPolling();
+    }
   }
 
-  /**
-   * Disconnect from SSE stream
-   */
   disconnect() {
-    if (this.eventSource) {
-      this.eventSource.close();
-      this.eventSource = null;
+    this.disconnectSSE();
+    if (this._pollTimer) {
+      clearTimeout(this._pollTimer);
+      this._pollTimer = null;
     }
     this.jobId = null;
   }
 
-  /**
-   * Check job status via polling (fallback)
-   * @private
-   */
-  async _checkJobStatus() {
+  disconnectSSE() {
+    if (this.eventSource) {
+      try {
+        this.eventSource.close();
+      } catch {}
+      this.eventSource = null;
+    }
+  }
+
+  _startPolling() {
+    this.disconnectSSE();
+    if (this._pollTimer) {
+      clearTimeout(this._pollTimer);
+      this._pollTimer = null;
+    }
+    this._pollIntervalMs = 1500;
+    this._pollOnce();
+  }
+
+  async _pollOnce() {
     if (!this.jobId) return;
-
     try {
-      const response = await fetch(`/api/batch/status/${encodeURIComponent(this.jobId)}?includeItems=true`);
-
+      const response = await this._fetch(
+        `/api/batch/status/${encodeURIComponent(this.jobId)}?includeItems=true`
+      );
       if (!response.ok) {
-        this._notifyError(`Failed to load job status (HTTP ${response.status})`);
-        return;
+        throw new Error(`Failed to load job status (HTTP ${response.status})`);
       }
-
       const data = await response.json();
-      if (!data || typeof data !== 'object' || !data.status || !data.stats) {
-        this._notifyError('Received malformed job status payload');
-        return;
-      }
+      this._handleUpdate(data);
 
-      if (data.status === 'completed' || data.status === 'completed_with_errors') {
-        this._notifyComplete(data);
-        this.disconnect();
-      } else {
-        this._handleUpdate(data);
+      const done = data?.status === 'completed' ||
+                   data?.status === 'completed_with_errors' ||
+                   data?.status === 'cancelled';
+      if (!done) {
+        this._pollTimer = setTimeout(() => this._pollOnce(), this._pollIntervalMs);
+        this._pollIntervalMs = Math.min(
+          Math.floor(this._pollIntervalMs * 1.3),
+          this._maxPollIntervalMs
+        );
       }
     } catch (error) {
-      console.error('Error checking job status:', error);
-      this._notifyError(error.message);
+      console.error('Error polling batch status:', error);
+      this._safeError(error);
+      this._pollTimer = setTimeout(() => this._pollOnce(), this._pollIntervalMs);
+      this._pollIntervalMs = Math.min(
+        Math.floor(this._pollIntervalMs * 1.5),
+        this._maxPollIntervalMs
+      );
     }
+  }
+
+  _safeError(error) {
+    if (!error) return;
+    const message = typeof error === 'string' ? error : (error?.message || 'Unexpected error');
+    this._notifyError(message);
   }
 
   /**

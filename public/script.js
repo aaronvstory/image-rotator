@@ -56,6 +56,11 @@ class ImageManipulator {
                 }
             });
         }
+
+        const fastScanToggle = document.getElementById('checkOCRResultsToggle');
+        if (fastScanToggle) {
+            fastScanToggle.addEventListener('change', () => this.loadImages());
+        }
     }
 
 
@@ -260,7 +265,9 @@ class ImageManipulator {
         try {
             this.showLoading();
 
-            const response = await fetch('/api/images');
+            const toggle = document.getElementById('checkOCRResultsToggle');
+            const checkFlag = toggle ? String(!!toggle.checked) : 'true';
+            const response = await fetch(`/api/images?checkOCRResults=${checkFlag}`);
             const data = await response.json();
 
             if (data.success) {

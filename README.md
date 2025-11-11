@@ -109,6 +109,14 @@ npm run server
 ```
 Then open http://localhost:3001 in browser
 
+### Host and port
+- The Express server reads `PORT` and `HOST` from env (defaults: `3001` / `localhost`). Set `HOST=0.0.0.0` to expose outside localhost.
+- The Electron launcher prefers `SERVER_PORT`, then `PORT`, and forwards `HOST`/`PORT` to the spawned server so desktop and browser builds stay in sync.
+
+### Large folders
+- The UI exposes a checkbox “Check existing OCR results”. Leave it checked for accuracy; uncheck it for faster listing on very large directories.
+- The backend also supports `/api/images?checkOCRResults=false` if you need to skip those checks programmatically.
+
 ### Architecture
 - **Electron Main**: `electron-main.js` - Window management, IPC
 - **Electron Preload**: `electron-preload.js` - Secure context bridge

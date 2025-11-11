@@ -37,16 +37,37 @@ async function hasOCRResults(imagePath) {
   return Boolean(files.json || files.txt);
 }
 
-async function scanImagesRecursively(dirPath) {
+async function scanImagesRecursively(dirPath, opts = {}) {
+  const { checkOCRResults = true, ocrCache = new Map() } = opts;
   const acc = [];
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
     for (const e of entries) {
       const full = path.join(dirPath, e.name);
-      if (e.isDirectory()) { acc.push(...await scanImagesRecursively(full)); continue; }
+      if (e.isDirectory()) {
+        acc.push(...await scanImagesRecursively(full, { checkOCRResults, ocrCache }));
+        continue;
+      }
       if (!isImageFile(e.name)) continue;
       const rel = path.relative(IMAGE_DIR, full);
-      acc.push({ filename: e.name, fullPath: full, relativePath: rel, directory: path.dirname(rel), hasOCRResults: await hasOCRResults(full) });
+
+      let hasOCR = false;
+      if (checkOCRResults) {
+        if (ocrCache.has(full)) {
+          hasOCR = ocrCache.get(full);
+        } else {
+          hasOCR = await hasOCRResults(full);
+          ocrCache.set(full, hasOCR);
+        }
+      }
+
+      acc.push({
+        filename: e.name,
+        fullPath: full,
+        relativePath: rel,
+        directory: path.dirname(rel),
+        hasOCRResults: hasOCR
+      });
     }
   } catch (e) { console.error('scan error', e.message); }
   return acc;
@@ -101,7 +122,10 @@ app.get('/api/images', async (req, res) => {
   if (!IMAGE_DIR) {
     return res.json({ success: true, count: 0, images: [], directory: null });
   }
-  const images = await scanImagesRecursively(IMAGE_DIR);
+  const images = await scanImagesRecursively(IMAGE_DIR, {
+    checkOCRResults: req.query.checkOCRResults !== 'false',
+    ocrCache: new Map()
+  });
   res.json({ success: true, count: images.length, images, directory: IMAGE_DIR });
 });
 
