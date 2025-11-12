@@ -131,7 +131,12 @@ export default class BatchController {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    items: selectedItems,
+                    items: selectedItems
+                        .map(i => {
+                            const p = i.fullPath || i.relativePath || i.path || i.id;
+                            return p ? { path: String(p), filename: i.filename || i.name || null } : null;
+                        })
+                        .filter(Boolean),
                     options: {
                         chunkSize: 50,
                         overwrite: 'skip'
@@ -147,7 +152,7 @@ export default class BatchController {
                 } catch (parseError) {
                     try {
                         serverMessage = await response.text();
-                    } catch {}
+                    } catch { }
                 }
                 const message = `Failed to start batch OCR (HTTP ${response.status}): ${serverMessage || response.statusText || 'Unknown error'}`;
                 console.error(message);
