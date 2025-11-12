@@ -13,7 +13,8 @@ async function writeFileAtomic(filePath, content) {
   await fs.mkdir(dir, { recursive: true });
 
   // Use a unique temp directory per write to avoid collisions across concurrent calls.
-  const tmpBase = path.join(os.tmpdir(), `ocr-${crypto.randomUUID()}`);
+const tmpBase = await fs.mkdtemp(path.join(dir, '.ocr-tmp-'));
+const tempPath = path.join(tmpBase, `${path.basename(filePath)}.tmp`);
   await fs.mkdir(tmpBase, { recursive: true });
 
   const tempPath = path.join(tmpBase, `${path.basename(filePath)}.tmp`);
