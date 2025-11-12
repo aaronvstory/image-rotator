@@ -1,10 +1,26 @@
 // BatchController.js - Batch processing controls (classic script variant)
 (function () {
+    /**
+     * Extracts a stable identifier from an image object.
+     *
+     * @param {Object|null|undefined} image - Image object that may contain identifier fields.
+     * @returns {string|null} The first available identifier among `fullPath`, `relativePath`, `path`, or `id`; returns `null` if none are present or if `image` is not a non-null object.
+     */
     function getStableSelectionId(image) {
         if (!image || typeof image !== 'object') return null;
         return image.fullPath || image.relativePath || image.path || image.id || null;
     }
 
+    /**
+     * Create a controller that manages batch selection and batch OCR operations for images.
+     *
+     * Initializes the controller state and, when available on the global scope, constructs
+     * supporting modules (BatchSelection, BatchModal, BatchProgress). The provided
+     * imageManipulator is retained for image access and user-facing error reporting.
+     *
+     * @param {object|null} imageManipulator - Facade that exposes image access and UI helpers (e.g., images list, getVisibleImages, showError); may be null.
+     * @constructor
+     */
     function BatchController(imageManipulator) {
         this.imageManipulator = imageManipulator || null;
         this.batchSelection = window.BatchSelection ? new window.BatchSelection() : null;
@@ -204,4 +220,3 @@
 
     window.BatchController = BatchController;
 })();
-

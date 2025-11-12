@@ -183,6 +183,17 @@ const wireQuickSelectControls = (controller, ctx) => {
   }
 };
 
+/**
+ * Initialize and wire enhanced batch controls for the image-processing UI.
+ *
+ * Augments the provided context's image manipulator with convenience methods,
+ * installs render hooks, and wires filter and quick-select controls so the UI
+ * shows updated statistics and supports batch selection behaviors.
+ *
+ * @param {Object} [ctx] - Optional context object.
+ * @param {Object} [ctx.controller] - Controller that holds batch selection APIs used by quick-select controls.
+ * @param {Object} [ctx.imageManipulator] - Image manipulator to augment; if omitted the function will attempt to use controller.imageManipulator or window.imageManipulator.
+ */
 function setupBatchControls(ctx = {}) {
   const controller = ctx.controller;
   const manipulator = ctx.imageManipulator || controller?.imageManipulator || window.imageManipulator;

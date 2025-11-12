@@ -31,10 +31,22 @@ const SUPPORTED_EXTENSIONS = [
 
 const JOB_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
+/**
+ * Determine whether a job identifier conforms to the expected JOB_ID_PATTERN.
+ * @param {string} jobId - The job identifier to validate.
+ * @returns {boolean} `true` if `jobId` matches the required pattern, `false` otherwise.
+ */
 function isValidJobId(jobId) {
   return typeof jobId === "string" && JOB_ID_PATTERN.test(jobId);
 }
 
+/**
+ * Determines whether `childPath` is the same as or a descendant of `parentPath`.
+ *
+ * @param {string} childPath - Path to test (file or directory).
+ * @param {string} parentPath - Candidate parent directory path.
+ * @returns {boolean} `true` if `childPath` is equal to or contained within `parentPath`, `false` otherwise.
+ */
 function isPathInside(childPath, parentPath) {
   const relative = path.relative(parentPath, childPath);
   return (
@@ -43,13 +55,28 @@ function isPathInside(childPath, parentPath) {
   );
 }
 
-// Check if file is an image
+/**
+ * Determine whether a filename refers to a supported image file based on its extension.
+ * @param {string} filename - The filename or path to check.
+ * @returns {boolean} `true` if the filename has a supported image extension, `false` otherwise.
+ */
 function isImageFile(filename) {
   const ext = path.extname(filename).toLowerCase();
   return SUPPORTED_EXTENSIONS.includes(ext);
 }
 
-// Recursively scan directory for images
+/**
+ * Collects image file entries by recursively scanning a directory tree.
+ * 
+ * @param {string} dirPath - Absolute or relative path of the directory to scan.
+ * @returns {Promise<Array<{filename: string, fullPath: string, relativePath: string, directory: string}>>}
+ *   A promise that resolves to an array of image entries. Each entry contains:
+ *   - `filename`: the image file name,
+ *   - `fullPath`: the resolved file system path to the image,
+ *   - `relativePath`: path of the image relative to the configured IMAGE_DIR,
+ *   - `directory`: the image's directory relative to IMAGE_DIR.
+ *   If the directory cannot be read, the function resolves to an empty array (errors are logged).
+ */
 async function scanImagesRecursively(dirPath) {
   let images = [];
 
@@ -81,7 +108,11 @@ async function scanImagesRecursively(dirPath) {
   return images;
 }
 
-// Generate thumbnail using Sharp
+/**
+ * Create a 150x150 center-cropped JPEG thumbnail from the image at the given path.
+ * @param {string} imagePath - Filesystem path of the source image.
+ * @returns {Buffer} The generated JPEG thumbnail data.
+ */
 async function generateThumbnail(imagePath) {
   try {
     const thumbnail = await sharp(imagePath)
@@ -99,7 +130,12 @@ async function generateThumbnail(imagePath) {
   }
 }
 
-// Generate preview (larger version) using Sharp
+/**
+ * Creates a high-quality JPEG preview for the image at the given filesystem path.
+ * 
+ * @param {string} imagePath - Filesystem path to the source image.
+ * @returns {Buffer} A JPEG buffer containing the resized preview image.
+ */
 async function generatePreview(imagePath) {
   try {
     const preview = await sharp(imagePath)
@@ -117,7 +153,14 @@ async function generatePreview(imagePath) {
   }
 }
 
-// Rotate image with robust retry logic for Windows file locking
+/**
+ * Rotate an image file by the given degrees with retry handling for common file-locking errors.
+ *
+ * @param {string} imagePath - Path to the image file to rotate.
+ * @param {number} degrees - Degrees to rotate the image (passed to Sharp).
+ * @returns {boolean} `true` if the image was rotated and written successfully.
+ * @throws {Error} If the file is not found ("Image file not found"), permission is denied ("Permission denied - file may be locked by another process"), the file is busy ("File is busy - please try again in a moment"), file access is unknown ("File access error - file may be locked or corrupted"), or a generic processing failure after retries.
+ */
 async function rotateImage(imagePath, degrees) {
   const maxRetries = 3;
   let lastError = null;
@@ -238,7 +281,12 @@ async function rotateImage(imagePath, degrees) {
   }
 }
 
-// Helper function to determine if an error is retryable
+/**
+ * Determine whether a file-system-related error is likely transient and worth retrying.
+ *
+ * @param {Error|object} error - The error object to evaluate; may contain `code` and `message` properties.
+ * @returns {boolean} `true` if the error appears retryable (transient locking, busy, or access conditions), `false` otherwise.
+ */
 function isRetryableError(error) {
   const retryableCodes = [
     "EBUSY",
@@ -446,12 +494,25 @@ const MAX_OCR_CONCURRENCY = process.env.MAX_OCR_CONCURRENCY
 // Persistence for jobs
 const JOBS_DIR = path.join(process.cwd(), ".ocr_jobs");
 
+/**
+ * Ensure the persisted jobs directory exists on disk, creating it and any missing parent directories.
+ *
+ * This operation is idempotent and swallows errors (no exception is thrown on failure).
+ */
 async function ensureJobsDir() {
   try {
     await fs.mkdir(JOBS_DIR, { recursive: true });
   } catch {}
 }
 
+/**
+ * Persist a job object to the jobs directory as a JSON file.
+ *
+ * Ensures the jobs directory exists and writes the job to `${JOBS_DIR}/${job.id}.json`
+ * using 2-space indentation. Failures are logged as a warning and not propagated.
+ *
+ * @param {Object} job - The job object to persist. Must have an `id` string used for the filename.
+ */
 async function saveJob(job) {
   try {
     await ensureJobsDir();
@@ -462,6 +523,14 @@ async function saveJob(job) {
   }
 }
 
+/**
+ * Load persisted OCR job objects from the jobs directory.
+ *
+ * Reads JSON files from the configured JOBS_DIR, skipping files that fail to parse,
+ * and returns the collected jobs sorted by `startTime` in ascending order.
+ *
+ * @returns {Array<Object>} An array of job objects sorted by `startTime` (earliest first). Files that cannot be read or parsed are skipped; returns an empty array if no valid job files are found.
+ */
 async function loadPersistedJobs() {
   const jobs = [];
   try {
@@ -486,6 +555,20 @@ async function loadPersistedJobs() {
   );
 }
 
+/**
+ * Create a compact summary of a batch OCR job containing core status and counts.
+ * @param {object} job - Job object.
+ * @param {string} job.id - Unique job identifier.
+ * @param {string} job.status - Current job status (e.g., "pending", "processing", "completed", "cancelled").
+ * @param {string|number|null} job.startTime - Job start timestamp.
+ * @param {string|number|null} job.endTime - Job end timestamp.
+ * @param {number} job.totalImages - Total images scheduled for the job.
+ * @param {number} job.processedImages - Number of images processed so far.
+ * @param {number} job.skippedImages - Number of images skipped.
+ * @param {number} job.failedImages - Number of images that failed.
+ * @param {number} job.concurrency - Concurrency level used for processing.
+ * @returns {object} An object with the job's id, status, timestamps, image counts, and concurrency.
+ */
 function summarizeJob(job) {
   const {
     id,
@@ -670,7 +753,14 @@ app.post("/api/ocr/batch", async (req, res) => {
   }
 });
 
-// Batch processing function with concurrency & cancellation
+/**
+ * Processes a batch of images through the OCR service with controlled concurrency and progress persistence.
+ *
+ * Runs up to `concurrency` workers that process `images` in parallel, updates the in-memory job record for `jobId` (counts, current images, results, status, timestamps), persistently saves job state, and broadcasts progress updates. The job supports cooperative cancellation (`job.cancelled`), records per-image failures without throwing, and sets the final job status to "completed" or "cancelled" with `endTime`.
+ *
+ * @param {string} jobId - Identifier of the OCR batch job to process.
+ * @param {Array<Object>} images - Array of image entries to process; each entry must include at least `fullPath` and `relativePath`.
+ * @param {number} concurrency - Maximum number of concurrent worker tasks to run.
 async function processBatchOCR(jobId, images, concurrency) {
   const job = batchJobs.get(jobId);
   if (!job) return;
@@ -681,6 +771,17 @@ async function processBatchOCR(jobId, images, concurrency) {
   let index = 0;
   const total = images.length;
 
+  /**
+   * Processes images assigned to a batch OCR job until completion or cancellation.
+   *
+   * Runs a worker loop that atomically takes the next image index from a shared queue,
+   * invokes the OCR service for each image, updates the job's counters and result list,
+   * broadcasts progress to connected SSE clients, persists the job state after each image,
+   * and respects job cancellation. Per-image errors are recorded on the job and do not
+   * stop the worker; a short delay is applied between iterations to reduce API burst.
+   *
+   * @param {number} workerId - Numeric identifier for this worker (used for tracing/logging).
+   */
   async function worker(workerId) {
     while (true) {
       if (job.cancelled) break;
@@ -806,7 +907,12 @@ res.writeHead(200, {
   });
 });
 
-// Broadcast progress to all connected clients
+/**
+ * Send progress updates to all Server-Sent Events (SSE) clients subscribed to a job.
+ *
+ * @param {string} jobId - The job identifier whose connected SSE clients should receive the update.
+ * @param {Object} data - The progress payload to transmit; serialized to JSON before sending.
+ */
 function broadcastProgress(jobId, data) {
   const connections = sseConnections.get(jobId);
   if (connections) {
@@ -1138,4 +1244,3 @@ app.listen(PORT, () => {
       .catch(() => {});
   }
 });
-

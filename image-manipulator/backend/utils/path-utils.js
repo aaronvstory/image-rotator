@@ -2,10 +2,13 @@ const path = require('path');
 const fs = require('fs').promises;
 
 /**
- * Attempt to canonicalize a path via realpath; fall back to the resolved path when ENOENT.
- * This lets us validate paths that might not exist yet while still preventing symlink escapes.
- * @param {string} targetPath
- * @returns {Promise<string|null>}
+ * Canonicalize a filesystem path using realpath, falling back to a resolved absolute path if the target does not exist.
+ *
+ * Returns null for non-string or empty inputs.
+ *
+ * @param {string} targetPath - The path to canonicalize.
+ * @returns {Promise<string|null>} The canonical absolute path; the realpath when available, or the resolved absolute path if the file does not exist, or `null` for invalid input.
+ * @throws {Error} Rethrows errors from `fs.realpath` except when the error code is `ENOENT`.
  */
 async function toRealOrResolved(targetPath) {
   if (typeof targetPath !== 'string') return null;
@@ -23,8 +26,10 @@ async function toRealOrResolved(targetPath) {
 }
 
 /**
- * Checks whether `child` path is inside `parent` path (or equal).
- * Returns true when `child` is within `parent`, false otherwise.
+ * Determine whether a child filesystem path is inside or equal to a parent path.
+ * @param {string} child - Path to test.
+ * @param {string} parent - Directory path to test against.
+ * @returns {boolean} `true` if `child` resides inside or is equal to `parent`, `false` otherwise.
  */
 async function isPathInside(child, parent) {
   if (!child || !parent) return false;
@@ -42,8 +47,10 @@ async function isPathInside(child, parent) {
 }
 
 /**
- * Resolves an image path (absolute or relative) against the configured image directory.
- * Returns the absolute path when it's inside the directory, or null if invalid.
+ * Resolve an image file path against a configured image directory and ensure it remains inside that directory.
+ * @param {string} imagePath - The image path to resolve; may be absolute or relative.
+ * @param {string} imageDir - The root image directory to resolve relative paths against.
+ * @returns {string|null} The absolute path that lies inside `imageDir`, or `null` if the path is invalid or outside the directory.
  */
 async function resolveImagePath(imagePath, imageDir) {
   if (!imageDir || typeof imagePath !== 'string') {
@@ -69,9 +76,12 @@ async function resolveImagePath(imagePath, imageDir) {
 }
 
 /**
- * Validates an OCR results file path (`fp`) against the configured image directory
- * and allowed filename suffixes. Returns an object with `valid` and either `path`
- * (absolute normalized filepath) or `error` message.
+ * Validate an OCR results file path against a configured image directory and allowed filename suffixes.
+ *
+ * @param {string} fp - The file path to validate (can be relative or absolute).
+ * @param {string} imageDir - The configured image directory that `fp` must reside within.
+ * @param {string[]} [validSuffixes=[]] - Optional list of allowed filename suffixes (case-insensitive).
+ * @returns {{ valid: boolean, path?: string, error?: string }} If valid, `valid` is `true` and `path` is the resolved absolute path; otherwise `valid` is `false` and `error` contains a short message.
  */
 async function validateOCRPath(fp, imageDir, validSuffixes = []) {
   if (!imageDir) {
@@ -110,4 +120,3 @@ module.exports = {
   resolveImagePath,
   validateOCRPath,
 };
-

@@ -1,4 +1,4 @@
-﻿// Image Manipulator v2.0 - Client-side JavaScript Application
+// Image Manipulator v2.0 - Client-side JavaScript Application
 // Dependencies loaded via script tags: BatchController, Pager, setupBatchControls
 
 const getStableSelectionId = (image = {}) => (
@@ -929,7 +929,11 @@ class ImageManipulator {
     }
 }
 
-// Utility function to escape HTML
+/**
+ * Escape special HTML characters in a string to prevent HTML injection.
+ * @param {string} text - The input string that may contain HTML special characters.
+ * @returns {string} The input with `&`, `<`, `>`, `"` and `'` replaced by their corresponding HTML entities.
+ */
 function escapeHtml(text) {
     const map = {
         '&': '&amp;',
@@ -965,7 +969,6 @@ document.addEventListener('keydown', (e) => {
         });
     }
 });
-
 
 
 
