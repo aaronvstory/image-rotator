@@ -385,6 +385,7 @@ Hair Color: ${data.hairColor || 'N/A'}
 
   async populateRawView() {
     const editor = document.getElementById('ocrRawEditor');
+    if (!editor) return; // Guard against missing element
 
     try {
       if (!this.currentImagePath) {
