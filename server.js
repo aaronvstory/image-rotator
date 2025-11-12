@@ -350,8 +350,28 @@ app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
 
 app.use('/api/batch', batchRoutes);
 
+// SSE and API origin allowlist:
+// Set APP_ORIGIN to a comma-separated list, e.g.
+// APP_ORIGIN="http://localhost:3000,http://localhost:3001"
+const ORIGINS = (process.env.APP_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+app.use((req, res, next) => {
+  if (!ORIGINS.length) return next();
+  const origin = req.headers.origin || '';
+  if (ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  return next();
+});
+
 app.listen(PORT, HOST, () => {
   console.log(`\nWSL Functional Base server running at http://${HOST}:${PORT}`);
+  if (ORIGINS.length) {
+    console.log(`Allowed origins: ${ORIGINS.join(', ')}`);
+  }
   console.log('Rollback tag: v1-polished-ui');
 });
 

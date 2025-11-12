@@ -99,13 +99,18 @@ router.get('/progress/:jobId', (req, res) => {
   }
 
   // Security: restrict who can consume SSE progress
-  const appOrigin = req.app.get('APP_ORIGIN') || process.env.APP_ORIGIN;
-  if (appOrigin) {
-    const requestOrigin = req.get('origin');
-    if (requestOrigin && requestOrigin !== appOrigin) {
+  const originConfig = req.app.get('APP_ORIGIN') || process.env.APP_ORIGIN || '';
+  const allowedOrigins = originConfig
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  if (allowedOrigins.length) {
+    const requestOrigin = req.get('origin') || '';
+    if (!allowedOrigins.includes(requestOrigin)) {
       return res.status(403).json({ error: 'Forbidden origin for progress stream' });
     }
-    res.setHeader('Access-Control-Allow-Origin', appOrigin);
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
   }
 
   res.writeHead(200, {
@@ -280,15 +285,22 @@ router.delete('/job/:jobId', (req, res) => {
   if (!job) {
     return res.status(404).json({ success: false, error: 'Job not found' });
   }
-  if (TERMINAL_STATUSES.has(job.status)) {
-    return res.status(409).json({ success: false, error: 'Job can no longer be deleted' });
+
+  // Block deletion only for active jobs; allow terminal jobs to be deleted.
+  const ACTIVE_STATUSES = new Set(['queued', 'processing']);
+  if (ACTIVE_STATUSES.has(String(job.status).toLowerCase())) {
+    return res.status(409).json({ success: false, error: 'Cannot delete a running job' });
   }
 
   try {
-    batchManager.deleteJob(jobId);
-    res.json({ success: true, jobId });
+    const ok = batchManager.deleteJob(jobId);
+    if (!ok) {
+      return res.status(404).json({ success: false, error: 'Job not found' });
+    }
+    // If SSE streams were keyed by jobId, they should be closed here. No-op for now.
+    return res.json({ success: true, deleted: jobId });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

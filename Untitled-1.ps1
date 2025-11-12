@@ -4,8 +4,8 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('All','Checklist','Smoke','Gate')]
-    [string]$Section = 'All'
+  [ValidateSet('All', 'Checklist', 'Smoke', 'Gate')]
+  [string]$Section = 'All'
 )
 
 $checklist = @"
@@ -40,9 +40,9 @@ $goNoGo = @"
 "@
 
 switch ($Section) {
-    'Checklist' { Write-Output $checklist }
-    'Smoke'     { Write-Output $smokeTests }
-    'Gate'      { Write-Output $goNoGo }
-    default     { Write-Output ($checklist + "`n`n" + $smokeTests + "`n`n" + $goNoGo) }
+  'Checklist' { Write-Output $checklist }
+  'Smoke' { Write-Output $smokeTests }
+  'Gate' { Write-Output $goNoGo }
+  default { Write-Output ($checklist + "`n`n" + $smokeTests + "`n`n" + $goNoGo) }
 }
 
