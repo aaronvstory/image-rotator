@@ -12,7 +12,10 @@ function log(msg) { console.log(msg); }
   for (const file of files) {
     log(`\nRunning ${file} ...`);
     try {
-      require(path.join(testsDir, file));
+      const result = require(path.join(testsDir, file));
+      if (result && typeof result.then === 'function') {
+        await result;
+      }
     } catch (e) {
       failures++;
       console.error(`Test ${file} FAILED:`, e);

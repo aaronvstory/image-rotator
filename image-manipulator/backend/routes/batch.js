@@ -96,8 +96,13 @@ router.get('/progress/:jobId', (req, res) => {
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive'
   });
+  res.flushHeaders?.();
+  res.write(':ok\n\n');
+  res.setTimeout?.(0);
+  req.socket?.setKeepAlive?.(true);
+  req.socket?.setNoDelay?.(true);
 
-  const snapshot = () => {
+  const buildSnapshot = () => {
     const latest = batchManager.getJob(jobId);
     if (!latest) return null;
     return {
@@ -111,40 +116,67 @@ router.get('/progress/:jobId', (req, res) => {
     };
   };
 
-  const writeSnapshot = () => {
-    const data = snapshot();
-    if (!data) return;
-    res.write(`event: job-update\n`);
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  let cleanedUp = false;
+  const sendEvent = (eventName, payload) => {
+    if (res.writableEnded || cleanedUp) return;
+    res.write(`event: ${eventName}\n`);
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
   };
 
-  writeSnapshot();
-
-  const events = [];
-  const register = (eventName) => {
-    const handler = (payload) => {
-      if (payload?.jobId === jobId) {
-        writeSnapshot();
-      }
-    };
-    batchManager.on(eventName, handler);
-    events.push({ eventName, handler });
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    clearInterval(heartbeat);
+    trackedEvents.forEach((eventName) => batchManager.off(eventName, updateHandler));
+    batchManager.off('jobCompleted', completionHandler);
+    req.off?.('close', onClose);
   };
 
-  ['jobStarted', 'jobCompleted', 'jobPaused', 'jobResumed', 'jobCancelled', 'itemStatusChanged'].forEach(register);
+  const finishStream = (status) => {
+    if (cleanedUp || res.writableEnded) return;
+    sendEvent('end', { status });
+    cleanup();
+    res.end();
+  };
+
+  const sendSnapshot = () => {
+    const current = buildSnapshot();
+    if (!current) return;
+    sendEvent('job-update', current);
+    if (TERMINAL_STATUSES.has(current.status)) {
+      finishStream(current.status);
+    }
+  };
+
+  const updateHandler = (payload) => {
+    if (payload?.jobId !== jobId) return;
+    sendSnapshot();
+  };
+
+  const completionHandler = (payload) => {
+    if (payload?.jobId !== jobId) return;
+    sendSnapshot();
+  };
+
+  const trackedEvents = ['jobStarted', 'jobPaused', 'jobResumed', 'jobCancelled', 'itemStatusChanged'];
+  trackedEvents.forEach((eventName) => batchManager.on(eventName, updateHandler));
+  batchManager.on('jobCompleted', completionHandler);
 
   const heartbeat = setInterval(() => {
-    if (!res.destroyed) {
+    if (!res.destroyed && !res.writableEnded) {
       res.write(': heartbeat\n\n');
     } else {
       clearInterval(heartbeat);
     }
   }, 30000);
 
-  req.on('close', () => {
-    clearInterval(heartbeat);
-    events.forEach(({ eventName, handler }) => batchManager.off(eventName, handler));
-  });
+  const onClose = () => {
+    cleanup();
+  };
+
+  req.on('close', onClose);
+
+  sendSnapshot();
 });
 
 router.get('/status/:jobId', (req, res) => {

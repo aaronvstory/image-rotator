@@ -54,8 +54,6 @@ class BatchProcessor {
         await this.processChunk(jobId, chunk);
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
-
-      this._ensureJobCompletion(jobId);
     } finally {
       const storedRuntime = this.processingJobs.get(jobId);
       const provider = storedRuntime?.provider;
