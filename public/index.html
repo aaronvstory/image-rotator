@@ -4,9 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Manipulator - Bulk Photo Management</title>
+    <title>Image Manipulator - WSL Feature Build</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="ocr-panel.css">
+    <link rel="stylesheet" href="css/theme-patches.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
@@ -16,7 +17,7 @@
             <div class="header-content">
                 <h1>
                     <i class="fas fa-sync-alt"></i>
-                    Image Manipulator
+                    Image Manipulator <span class="build-badge">WSL Build</span>
                 </h1>
                 <div class="stats">
                     <span id="imageCount" class="stat-badge">
@@ -45,10 +46,6 @@
                             <i class="fas fa-refresh"></i>
                             Refresh
                         </button>
-                        <button id="ocrAllBtn" class="btn btn-primary" style="margin-left: 10px;">
-                            <i class="fas fa-text-width"></i>
-                            OCR All
-                        </button>
                     </div>
                     <div class="current-folder">
                         <i class="fas fa-folder"></i>
@@ -62,15 +59,27 @@
                             <i class="fas fa-th"></i>
                             Grid Size:
                         </label>
-                        <input type="range" id="gridSize" class="grid-slider" min="100" max="400" value="180" step="20">
+                        <div class="grid-size-control">
+                            <input type="range" id="gridSize" class="grid-slider" min="100" max="400" value="180" step="20">
+                            <input type="number" id="gridSizeNumber" class="grid-number-input num-input" min="100" max="400" step="20" value="180" aria-label="Grid size in pixels">
+                        </div>
                         <span id="gridSizeValue" class="grid-value">180px</span>
                     </div>
-                    <div class="grid-controls">
-                        <label class="grid-label" style="display:flex;align-items:center;gap:.4rem;">
-                            <span>Preview Delay</span>
-                            <input id="hoverDelayRange" type="range" min="0" max="2000" step="100" value="2000" style="width:140px;" />
-                            <span id="hoverDelayValue" style="min-width:46px;text-align:right;font-variant-numeric:tabular-nums;">2000ms</span>
+                    <div class="hover-controls">
+                        <label for="hoverDelayRange" class="hover-label">
+                            <i class="fas fa-clock"></i>
+                            Hover Delay:
                         </label>
+                        <input type="range" id="hoverDelayRange" class="hover-slider" min="0" max="5000" value="2000" step="250">
+                        <span id="hoverDelayValue" class="hover-value">2.0s</span>
+                        <input type="number" id="hoverDelayInput" class="hover-input" min="0" max="5" step="0.25" value="2.0" aria-label="Hover delay in seconds">
+                    </div>
+                    <div class="fast-scan-toggle">
+                        <label class="toggle-label">
+                            <input id="checkOCRResultsToggle" type="checkbox" checked>
+                            Check existing OCR results
+                        </label>
+                        <small class="muted">Uncheck for faster listing on very large folders.</small>
                     </div>
                 </div>
             </div>
@@ -81,6 +90,101 @@
                     Click thumbnails for 90° CW rotation, use precision buttons for other angles, or hover over images to preview (adjustable delay from instant to 5 seconds)
                 </div>
             </div>
+
+            <!-- Batch Controls -->
+            <div class="batch-controls-section hidden" id="batchControlsSection">
+                <!-- Statistics Banner -->
+                <div class="batch-statistics">
+                    <div class="stat-item">
+                        <i class="fas fa-images"></i>
+                        <span>Total: <strong id="statTotal">0</strong></span>
+                    </div>
+                    <div class="stat-item stat-success">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Processed: <strong id="statProcessed">0</strong></span>
+                    </div>
+                    <div class="stat-item stat-pending">
+                        <i class="fas fa-clock"></i>
+                        <span>Remaining: <strong id="statRemaining">0</strong></span>
+                    </div>
+                </div>
+
+                <!-- Filter Buttons -->
+                <div class="batch-filter-controls">
+                    <button id="filterAllBtn" class="filter-btn active" data-filter="all">
+                        <i class="fas fa-border-all"></i>
+                        All
+                    </button>
+                    <button id="filterProcessedBtn" class="filter-btn" data-filter="processed">
+                        <i class="fas fa-check-circle"></i>
+                        Processed
+                    </button>
+                    <button id="filterUnprocessedBtn" class="filter-btn" data-filter="unprocessed">
+                        <i class="fas fa-clock"></i>
+                        Unprocessed
+                    </button>
+                </div>
+
+                <div class="batch-selection-controls">
+                    <button id="selectAllBtn" class="btn btn-secondary">
+                        <i class="fas fa-check-double"></i>
+                        Select All
+                    </button>
+                    <button id="selectPageBtn" class="btn btn-secondary">
+                        <i class="fas fa-layer-group"></i>
+                        Select Current Page
+                    </button>
+                    <button id="selectUnprocessedBtn" class="btn btn-secondary">
+                        <i class="fas fa-clock"></i>
+                        Select All Unprocessed
+                    </button>
+
+                    <!-- Preset Selector -->
+                    <div class="preset-selector">
+                        <label for="presetCount">Select Next:</label>
+                        <select id="presetCount" class="preset-dropdown">
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="custom">Custom...</option>
+                        </select>
+                        <input type="number" id="customCount" class="custom-count-input hidden" min="1" placeholder="Enter count" aria-label="Custom selection count">
+                        <button id="selectNextBtn" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-right"></i>
+                            Go
+                        </button>
+                    </div>
+
+                    <button id="clearSelectionBtn" class="btn btn-secondary">
+                        <i class="fas fa-times"></i>
+                        Clear Selection
+                    </button>
+                    <span id="selectionBadge" class="selection-badge">
+                        <i class="fas fa-images"></i>
+                        <span id="selectionCount">0</span> selected
+                    </span>
+                </div>
+                <div class="batch-action-controls">
+                    <button id="startBatchOCRBtn" class="btn btn-primary" disabled>
+                        <i class="fas fa-cogs"></i>
+                        Start Batch OCR
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="pager-controls hidden" id="pagerControls">
+            <button id="pagerPrev" class="btn btn-secondary" type="button" disabled>
+                <i class="fas fa-chevron-left"></i>
+                Prev
+            </button>
+            <input id="pagerPage" type="number" min="1" value="1" class="num-input small" aria-label="Current page">
+            <button id="pagerNext" class="btn btn-secondary" type="button" disabled>
+                Next
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <input id="pageSizeInput" type="number" min="50" max="500" step="50" value="150" class="num-input small" aria-label="Items per page">
+            <span id="pagerInfo" class="pager-info"></span>
         </div>
 
         <!-- Main Content -->
@@ -112,7 +216,67 @@
         </main>
     </div>
 
-    <script src="ocr-panel.js"></script>
-    <script src="script.js"></script>
+    <!-- OCR Results Viewer Modal -->
+    <div id="ocrViewerModal" class="ocr-viewer-modal hidden">
+        <div class="ocr-viewer-overlay"></div>
+        <div class="ocr-viewer-content">
+            <div class="ocr-viewer-header">
+                <h2 id="ocrViewerTitle">
+                    <i class="fas fa-file-alt"></i>
+                    <span id="ocrViewerFilename">OCR Results</span>
+                </h2>
+                <button id="ocrViewerClose" class="ocr-viewer-close" aria-label="Close OCR viewer">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="ocr-viewer-body">
+                <div class="ocr-viewer-tabs">
+                    <button class="ocr-tab active" data-tab="formatted">
+                        <i class="fas fa-align-left"></i>
+                        Formatted
+                    </button>
+                    <button class="ocr-tab" data-tab="json">
+                        <i class="fas fa-code"></i>
+                        JSON
+                    </button>
+                    <button class="ocr-tab" data-tab="raw">
+                        <i class="fas fa-file-alt"></i>
+                        Raw Text
+                    </button>
+                </div>
+                <div class="ocr-viewer-content-area">
+                    <div id="ocrFormattedView" class="ocr-tab-content active">
+                        <div id="ocrFormattedData" class="ocr-formatted-display"></div>
+                    </div>
+                    <div id="ocrJsonView" class="ocr-tab-content">
+                        <textarea id="ocrJsonEditor" class="ocr-editor" spellcheck="false" aria-label="OCR JSON content"></textarea>
+                    </div>
+                    <div id="ocrRawView" class="ocr-tab-content">
+                        <textarea id="ocrRawEditor" class="ocr-editor" spellcheck="false" aria-label="OCR raw text"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="ocr-viewer-footer">
+                <button id="ocrSaveBtn" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Save Changes
+                </button>
+                <button id="ocrCancelBtn" class="btn btn-secondary">
+                    Cancel
+                </button>
+<!-- <script src="js/pager.js"></script> -->
+        </div>
+    </div>
+
+    <!-- Batch Processing Scripts -->
+    <script src="js/pager.js" defer></script>
+    <script src="js/enhanced-features.js" defer></script>
+    <script src="js/batch-selection.js" defer></script>
+    <script src="js/batch-modal.js" defer></script>
+    <script src="js/batch-progress.js" defer></script>
+    <script src="js/controllers/BatchController.js" defer></script>
+    <script src="ocr-panel.js" defer></script>
+    <script src="js/ocr-viewer.js" defer></script>
+    <script src="script.js" defer></script>
 </body>
 </html>

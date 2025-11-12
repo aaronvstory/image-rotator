@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<!-- Image Manipulator v2.0 - Professional Bulk Image Rotation Tool -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Manipulator - Bulk Photo Management</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="ocr-panel.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>
+                    <i class="fas fa-sync-alt"></i>
+                    Image Manipulator
+                </h1>
+                <div class="stats">
+                    <span id="imageCount" class="stat-badge">
+                        <i class="fas fa-images"></i>
+                        <span id="totalImages">0</span> images
+                    </span>
+                    <span id="loadingIndicator" class="loading-badge">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        Loading...
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Controls -->
+        <div class="controls-section">
+            <div class="controls-content">
+                <div class="left-controls">
+                    <div class="folder-selector">
+                        <input type="text" id="folderPath" class="folder-input" placeholder="Enter folder path...">
+                        <button id="loadFolderBtn" class="btn btn-primary">
+                            <i class="fas fa-arrow-right"></i>
+                            Load
+                        </button>
+                        <button id="refreshBtn" class="btn btn-accent">
+                            <i class="fas fa-refresh"></i>
+                            Refresh
+                        </button>
+                        <button id="ocrAllBtn" class="btn btn-primary ocr-all-btn">
+                            <i class="fas fa-text-width"></i>
+                            OCR All
+                        </button>
+                    </div>
+                    <div class="current-folder">
+                        <i class="fas fa-folder"></i>
+                        <span id="currentFolder">No folder selected</span>
+                    </div>
+                </div>
+
+                <div class="right-controls">
+                    <div class="grid-controls">
+                        <label for="gridSize" class="grid-label">
+                            <i class="fas fa-th"></i>
+                            Grid Size:
+                        </label>
+                        <input type="range" id="gridSize" class="grid-slider" min="100" max="400" value="180" step="20">
+                        <span id="gridSizeValue" class="grid-value">180px</span>
+                    </div>
+                    <div class="grid-controls">
+                        <label class="grid-label preview-delay-label">
+                            <span>Preview Delay</span>
+                            <input id="hoverDelayRange" type="range" min="0" max="2000" step="100" value="2000" class="hover-delay-slider" />
+                            <span id="hoverDelayValue" class="hover-delay-value">2000ms</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="help-section">
+                <div class="help-text">
+                    <i class="fas fa-info-circle"></i>
+                    Click thumbnails for 90° CW rotation, use precision buttons for other angles, or hover over images to preview (adjustable delay from instant to 5 seconds)
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div id="errorMessage" class="error-message hidden">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span></span>
+            </div>
+
+            <!-- Image Grid -->
+            <div id="imageGrid" class="image-grid">
+                <!-- Images will be dynamically loaded here -->
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingGrid" class="loading-grid">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading images...</p>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state hidden">
+                <i class="fas fa-folder-open"></i>
+                <h3>No Images Found</h3>
+                <p>No images were found in the specified directory. Try selecting a different folder.</p>
+            </div>
+        </main>
+    </div>
+
+    <script src="ocr-panel.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

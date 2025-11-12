@@ -2,6 +2,8 @@ const fs = require("fs").promises;
 const path = require("path");
 const sharp = require("sharp");
 const fetch = require("node-fetch");
+const { saveOCRResults: persistOCRResults } = require("./image-manipulator/backend/services/result-saver");
+const { checkResultFiles } = require("./image-manipulator/backend/services/skip-detector");
 
 class OCRService {
   constructor(apiKey) {
@@ -15,10 +17,8 @@ class OCRService {
    */
   async hasOCRResults(imagePath) {
     try {
-      // Check for file with .ocr.json extension (matches server.js convention)
-      const ocrFile = imagePath + ".ocr.json";
-      await fs.access(ocrFile);
-      return true;
+      const files = await checkResultFiles(imagePath, process.env.IMAGE_DIR);
+      return Boolean(files.json || files.txt);
     } catch {
       return false;
     }
@@ -29,11 +29,13 @@ class OCRService {
    */
   async loadOCRResults(imagePath) {
     try {
-      // Load from file with .ocr.json extension (matches server.js convention)
-      const ocrFile = imagePath + ".ocr.json";
-      const data = await fs.readFile(ocrFile, "utf8");
+      const files = await checkResultFiles(imagePath, process.env.IMAGE_DIR);
+      if (!files.json) {
+        return null;
+      }
+      const data = await fs.readFile(files.json, "utf8");
       return JSON.parse(data);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -229,15 +231,15 @@ Return ONLY the JSON object, no other text.`;
    * Save OCR results to JSON and TXT files
    */
   async saveOCRResults(imagePath, ocrData) {
-    // Save with .ocr.json and .ocr.txt extensions (matches server.js convention)
-    const jsonPath = imagePath + ".ocr.json";
-    await fs.writeFile(jsonPath, JSON.stringify(ocrData, null, 2));
-
-    // Save TXT
-    const txtPath = imagePath + ".ocr.txt";
-    const txtContent = this.formatAsText(ocrData);
-    await fs.writeFile(txtPath, txtContent);
-
+    const imageDir = process.env.IMAGE_DIR;
+    if (!imageDir) {
+      throw new Error('IMAGE_DIR is not configured for OCR persistence');
+    }
+    await persistOCRResults(imagePath, ocrData, {
+      outputFormat: ["json", "txt"],
+      overwrite: "overwrite",
+      imageDir
+    });
     console.log(`Saved OCR results for ${path.basename(imagePath)}`);
   }
 
@@ -307,12 +309,17 @@ Return ONLY the JSON object, no other text.`;
     while (attempt < maxAttempts) {
       attempt++;
       try {
+        const appOrigin =
+          process.env.PUBLIC_ORIGIN ||
+          process.env.APP_ORIGIN ||
+          `http://localhost:${process.env.PORT || 3001}`;
         const response = await fetch(`${this.baseURL}/chat/completions`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${this.apiKey}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "http://localhost:3000",
+            "HTTP-Referer": appOrigin,
+            Origin: appOrigin,
             "X-Title": "Image Manipulator OCR",
           },
           body: JSON.stringify(payloadBuilder()),

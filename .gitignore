@@ -1,5 +1,9 @@
 # Image Manipulator v2.0 - Git Ignore Rules
 
+# Test data folders (ensure Windows path prefixes don't break ignores)
+# Ignore the generated sample test folders under tests/
+tests/100-test-folders-for-testing/
+
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -25,7 +29,6 @@ Thumbs.db
 # Editor directories and files
 .vscode/
 .idea/
-.history/
 *.swp
 *.swo
 *~
@@ -78,10 +81,10 @@ release/
 
 # YoYo AI version control directory
 .yoyo/
-
+.history/
 # OCR job persistence
 .ocr_jobs/
-
+.claude/
 # Claude Code session files and conversation exports
 .claude-session
 .claude/
@@ -107,7 +110,13 @@ OCR_*.md
 *_DOCUMENTATION.md
 *_RESULTS.md
 *_TEST_*.md
+tunnell.md
 
 # Archive directory (created by /organize)
 archive/
 archives/
+
+# Local toolchains / archives
+.tools/
+*.zip
+*.7z

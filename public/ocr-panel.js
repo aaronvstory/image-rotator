@@ -119,7 +119,7 @@ class OCRPanel {
     try {
       this.open();
       this.resetUI();
-      const response = await fetch("/api/ocr/batch", {
+      const response = await fetch("/api/batch/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -151,7 +151,7 @@ class OCRPanel {
 
   connectToProgressStream() {
     if (!this.jobId) return;
-    this.eventSource = new EventSource(`/api/ocr/progress/${this.jobId}`);
+    this.eventSource = new EventSource(`/api/batch/progress/${this.jobId}`);
     this.eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
       this.updateProgress(data);
@@ -172,7 +172,7 @@ class OCRPanel {
         return;
       }
       try {
-        const response = await fetch(`/api/ocr/job/${this.jobId}`);
+        const response = await fetch(`/api/batch/status/${this.jobId}`);
         if (!response.ok) {
           clearInterval(pollInterval);
           return;
@@ -214,7 +214,7 @@ class OCRPanel {
         data.progress ||
         ((data.processedImages + data.skippedImages + data.failedImages) /
           data.totalImages) *
-          100;
+        100;
       this.updateProgressBar(progress);
     }
     this.updateStats(data);
@@ -329,8 +329,7 @@ class OCRPanel {
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         alert(
-          `Failed to reprocess image: ${
-            payload.message || payload.error || response.status
+          `Failed to reprocess image: ${payload.message || payload.error || response.status
           }`
         );
         return;
@@ -344,19 +343,11 @@ class OCRPanel {
   async forceRefreshSingle() {
     if (!this.currentEntryForReprocess || !this.jobId) return;
     const img = this.currentEntryForReprocess.image;
-    if (!confirm("Delete cached OCR outputs for this image and reprocess?"))
+    if (!confirm("Reprocess this image (will overwrite existing results)?"))
       return;
     try {
-      const encoded = encodeURIComponent(img);
-      const delResp = await fetch(`/api/ocr/result/${this.jobId}/${encoded}`, {
-        method: "DELETE",
-      });
-      if (!delResp.ok) {
-        alert("Failed to clear cache");
-        return;
-      }
-      // Immediately fire reprocess
-      await this.reprocessSingle();
+      // Directly reprocess with overwrite mode
+      await this.reprocessSingle({ overwrite: 'overwrite' });
     } catch (e) {
       console.error(e);
       alert("Error performing force refresh");
@@ -383,9 +374,8 @@ class OCRPanel {
       else if (result.status === "error") statusIcon = "✗";
       item.innerHTML = `
                 <span class="result-status">${statusIcon}</span>
-                <span class="result-image link" title="View details">${
-                  result.image
-                }</span>
+                <span class="result-image link" title="View details">${result.image
+        }</span>
                 <span class="result-message">${result.message || ""}</span>
             `;
       const imgEl = item.querySelector(".result-image");
@@ -400,7 +390,7 @@ class OCRPanel {
   async fetchAndShowResult(jobId, imagePath) {
     try {
       const encoded = encodeURIComponent(imagePath);
-      const resp = await fetch(`/api/ocr/result/${jobId}/${encoded}`);
+      const resp = await fetch(`/api/ocr-results?path=${encoded}`);
       if (!resp.ok) {
         const text = await resp.text();
         alert(`Failed to load result (status ${resp.status})\n${text}`);
@@ -416,7 +406,7 @@ class OCRPanel {
 
   async startFailedOnly() {
     try {
-      const resp = await fetch("/api/ocr/batch", {
+      const resp = await fetch("/api/batch/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "failed_only" }),
@@ -450,6 +440,9 @@ class OCRPanel {
     btn.className = "btn-secondary";
     btn.style.fontSize = "0.65rem";
     btn.textContent = "Test OCR Key";
+    btn.title = "Health check endpoint not available";
+    btn.disabled = true;
+    /* Health check endpoint /api/ocr/health not implemented
     btn.onclick = async () => {
       btn.disabled = true;
       const old = btn.textContent;
@@ -469,6 +462,7 @@ class OCRPanel {
         btn.textContent = old;
       }
     };
+    */
     footer.appendChild(btn);
   }
 }

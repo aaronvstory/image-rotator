@@ -1,8 +1,6 @@
-# Image Rotator - Desktop App
+..# Image Rotator - Desktop App
 
 A powerful desktop application for bulk image rotation with integrated OCR capabilities for driver license processing.
-
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/aaronvstory/image-rotator?utm_source=oss&utm_medium=github&utm_campaign=aaronvstory%2Fimage-rotator&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 ## Features
 
@@ -36,19 +34,34 @@ A powerful desktop application for bulk image rotation with integrated OCR capab
 
 ### Quick Start
 
+### Option 1: Electron Desktop App (Recommended)
+
+**Windows Users:**
+1. Double-click `start-electron.bat`
+2. Wait for dependencies to install (first time only)
+3. App launches in a native window!
+
+**Command Line:**
 ```bash
-# 1. Clone repository
 git clone https://github.com/aaronvstory/image-rotator.git
 cd image-rotator
-
-# 2. Install dependencies
 npm install
-
-# 3. Start desktop app
 npm start
 ```
 
-The app will launch in a native window!
+### Option 2: Web Browser Mode
+
+**Windows Users:**
+1. Double-click `start-image-manipulator.bat`
+2. App opens in your default browser
+
+**Command Line:**
+```bash
+npm run server
+# Then open http://localhost:3001 in your browser
+```
+
+📖 **See [README-ELECTRON.md](README-ELECTRON.md) for detailed Electron/build documentation**
 
 ## Usage
 
@@ -78,25 +91,34 @@ OCR_CONCURRENCY=2
 3. Export results to CSV when complete
 4. OCR results saved as `{filename}.ocr.json` and `{filename}.ocr.txt`
 
-## Building Distributable App
+## Building Standalone Executable
 
-### Windows Installer (.exe)
+Want a single .exe file to share with others? No Node.js installation required!
+
+### Windows
+**Easy Way:** Double-click `build-electron.bat` and wait 5-10 minutes
+
+**Command Line:**
 ```bash
 npm run build:win
 ```
-Output: `dist/Image Rotator Setup.exe`
+**Output:**
+- `dist/Image Rotator Setup.exe` - Full installer (recommended)
+- `dist/Image Rotator.exe` - Portable version
 
-### macOS App Bundle (.dmg)
+### macOS
 ```bash
 npm run build:mac
 ```
-Output: `dist/Image Rotator.dmg`
+**Output:** `dist/Image Rotator.dmg`
 
-### Linux AppImage
+### Linux
 ```bash
 npm run build:linux
 ```
-Output: `dist/Image Rotator.AppImage`
+**Output:** `dist/Image Rotator.AppImage`
+
+📖 **Full build documentation: [README-ELECTRON.md](README-ELECTRON.md)**
 
 ## Development
 
@@ -109,99 +131,9 @@ npm run dev
 ```bash
 npm run server
 ```
-Then open http://localhost:3000 in browser
+Then open http://localhost:3001 in browser
 
-### Architecture
-- **Electron Main**: `electron-main.js` - Window management, IPC
-- **Electron Preload**: `electron-preload.js` - Secure context bridge
-- **Express Backend**: `server.js` - Image processing, API
-- **OCR Service**: `server-ocr.js` - OpenRouter integration
-- **Frontend**: `public/` - Vanilla JS UI (no frameworks)
-
-## Configuration
-
-### Environment Variables
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENROUTER_API_KEY` | OpenRouter API key for OCR | Required for OCR |
-| `OCR_CONCURRENCY` | Parallel OCR workers | 1 (max: 5) |
-| `PORT` | Server port | 3000 |
-| `NODE_ENV` | Environment (development/production) | production |
-
-### Build Configuration
-Edit `package.json` → `"build"` section for custom:
-- App icons
-- Installer options
-- Target platforms
-- File associations
-
-## Troubleshooting
-
-### App Won't Start
-- Check Node.js version: `node --version` (need 18+)
-- Delete `node_modules` and run `npm install` again
-- Check console for errors
-
-### Sharp Library Errors (Windows)
-```bash
-npm rebuild sharp
-```
-
-### OCR Not Working
-- Verify `.env` file exists with valid `OPENROUTER_API_KEY`
-- Check API key at https://openrouter.ai/keys
-- Ensure internet connection (API calls required)
-
-### Images Not Loading
-- Verify directory permissions
-- Check file formats (JPG, PNG, WebP only)
-- Look for errors in DevTools console (`Ctrl+Shift+I`)
-
-## File Structure
-
-```
-image-rotator/
-├── electron-main.js          # Electron main process
-├── electron-preload.js       # Preload script (security)
-├── server.js                 # Express backend
-├── server-ocr.js             # OCR service
-├── public/
-│   ├── index.html           # Main UI
-│   ├── script.js            # Image grid logic
-│   ├── style.css            # Main styles
-│   ├── ocr-panel.js         # OCR UI component
-│   └── ocr-panel.css        # OCR styles
-├── package.json             # Dependencies & build config
-└── .env                     # Environment variables (create this)
-```
-
-## Technology Stack
-
-- **Electron** - Desktop app framework
-- **Node.js** - Backend runtime
-- **Express** - Web server
-- **Sharp** - Image processing (rotation, thumbnails)
-- **OpenRouter API** - OCR via GPT-4o-mini
-- **Vanilla JavaScript** - Frontend (no frameworks!)
-
-## License
-
-MIT
-
-## Contributing
-
-PRs welcome! Key areas:
-- UI/UX improvements
-- Additional image operations
-- OCR field customization
-- Performance optimizations
-
-## Roadmap
-
-- [ ] System tray integration
-- [ ] Auto-updater
-- [ ] Drag & drop support
-- [ ] Batch operations (resize, crop)
-- [ ] More OCR document types
-- [ ] Dark mode
-- [ ] Keyboard shortcuts
+### Host and port
+- The Express server reads `PORT` and `HOST` from env (defaults: `3001` / `localhost`). Set `HOST=0.0.0.0` to expose outside localhost.
+- The Electron launcher prefers `SERVER_PORT`, then `PORT`, and forwards `HOST`/`PORT` to the spawned server so desktop and browser builds stay in sync.
+- Note: WINDOW_HOST is set to 127.0.0.1 when SERVER_HOST is

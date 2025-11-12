@@ -49,14 +49,14 @@
 <body>
     <div class="test-container">
         <h1>🧪 Hover Delay Feature Test</h1>
-        
+
         <div class="test-results">
             <h2>Test Results:</h2>
             <div id="testResults"></div>
         </div>
 
         <h2>Live Application:</h2>
-        <iframe src="http://localhost:3000" id="appFrame"></iframe>
+    <iframe src="http://localhost:3001" id="appFrame" title="Image Manipulator preview"></iframe>
 
         <div class="test-results">
             <h3>Manual Test Instructions:</h3>
@@ -75,7 +75,7 @@
 
     <script>
         const results = document.getElementById('testResults');
-        
+
         function addResult(test, success, message) {
             const div = document.createElement('div');
             div.className = `test-item ${success ? 'success' : 'error'}`;
@@ -86,17 +86,17 @@
         // Wait for iframe to load
         document.getElementById('appFrame').onload = function() {
             const iframeDoc = this.contentDocument || this.contentWindow.document;
-            
+
             // Test 1: Check if hover delay slider exists
             const hoverSlider = iframeDoc.getElementById('hoverDelay');
             if (hoverSlider) {
                 addResult('Hover Delay Slider', true, 'Found in DOM');
-                
+
                 // Test 2: Check slider attributes
                 const min = hoverSlider.getAttribute('min');
                 const max = hoverSlider.getAttribute('max');
                 const value = hoverSlider.getAttribute('value');
-                
+
                 if (min === '0' && max === '5000' && value === '2000') {
                     addResult('Slider Configuration', true, `Range: ${min}ms to ${max}ms, Default: ${value}ms`);
                 } else {
@@ -105,7 +105,7 @@
             } else {
                 addResult('Hover Delay Slider', false, 'Not found in DOM');
             }
-            
+
             // Test 3: Check if hover value display exists
             const hoverValue = iframeDoc.getElementById('hoverDelayValue');
             if (hoverValue) {
@@ -113,17 +113,17 @@
             } else {
                 addResult('Hover Value Display', false, 'Not found in DOM');
             }
-            
+
             // Test 4: Check if number input exists
             const hoverInput = iframeDoc.getElementById('hoverDelayInput');
             if (hoverInput) {
                 addResult('Number Input Field', true, `Value: ${hoverInput.value}s`);
-                
+
                 // Test 5: Check input attributes
                 const inputMin = hoverInput.getAttribute('min');
                 const inputMax = hoverInput.getAttribute('max');
                 const inputStep = hoverInput.getAttribute('step');
-                
+
                 if (inputMin === '0' && inputMax === '5' && inputStep === '0.25') {
                     addResult('Input Configuration', true, `Range: ${inputMin}-${inputMax}s, Step: ${inputStep}s`);
                 } else {
@@ -132,7 +132,7 @@
             } else {
                 addResult('Number Input Field', false, 'Not found in DOM');
             }
-            
+
             // Test 6: Check if help text was updated
             const helpText = iframeDoc.querySelector('.help-text');
             if (helpText && helpText.textContent.includes('adjustable delay')) {
@@ -140,7 +140,7 @@
             } else {
                 addResult('Help Text Update', false, 'Help text not updated with new feature info');
             }
-            
+
             // Test 7: Check if CSS styles are applied
             if (hoverSlider) {
                 const styles = this.contentWindow.getComputedStyle(hoverSlider);
