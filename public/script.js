@@ -1,7 +1,5 @@
 ﻿// Image Manipulator v2.0 - Client-side JavaScript Application
-import BatchController from './js/controllers/BatchController.js';
-import Pager from './js/pager.js';
-import { setupBatchControls } from './js/enhanced-features.js';
+// Dependencies loaded via script tags: BatchController, Pager, setupBatchControls
 class ImageManipulator {
     constructor() {
         this.images = [];
@@ -12,14 +10,14 @@ class ImageManipulator {
         const storedHoverDelay = parseInt(localStorage.getItem('hoverDelayMs'), 10);
         this.hoverDelayMs = Number.isFinite(storedHoverDelay) ? storedHoverDelay : 2000;
         this.currentFilter = 'all'; // all, processed, unprocessed
-        this.pager = new Pager(Number(localStorage.getItem('pageSize')) || 150);
+        this.pager = new window.Pager(Number(localStorage.getItem('pageSize')) || 150);
 
         // OCR viewer
         this.ocrViewer = (window.OCRViewer ? new window.OCRViewer() : null);
         window.ocrViewer = this.ocrViewer;
 
         // Batch controller
-        this.batchController = new BatchController(this);
+        this.batchController = new window.BatchController(this);
         this.init();
     }
 

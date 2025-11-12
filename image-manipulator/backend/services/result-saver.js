@@ -96,7 +96,7 @@ async function saveOCRResults(imagePath, result, options = {}) {
   const {
     outputFormat = ['json', 'txt'],
     overwrite = 'skip',
-    imageDir = process.env.IMAGE_DIR || null
+    imageDir = process.env.IMAGE_DIR || path.dirname(path.resolve(imagePath))
   } = options;
 
   const formats = Array.isArray(outputFormat) && outputFormat.length

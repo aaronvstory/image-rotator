@@ -66,31 +66,8 @@ async function checkResultFiles(imagePath) {
     return results;
   }
 
-  // Fallback if IMAGE_DIR not set (for backward compatibility)
-  const { json: jsonCandidates, txt: txtCandidates } = getResultFileCandidates(imagePath);
-  const results = { json: null, txt: null };
-
-  for (const candidate of jsonCandidates) {
-    try {
-      await fs.access(candidate);
-      results.json = candidate;
-      break;
-    } catch {
-      /* ignore */
-    }
-  }
-
-  for (const candidate of txtCandidates) {
-    try {
-      await fs.access(candidate);
-      results.txt = candidate;
-      break;
-    } catch {
-      /* ignore */
-    }
-  }
-
-  return results;
+  // Require IMAGE_DIR to prevent filesystem probing
+  return { json: null, txt: null };
 }
 
 async function shouldSkipImage(imagePath, options = {}) {

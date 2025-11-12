@@ -109,11 +109,14 @@ class BatchProcessor {
         return;
       }
 
-      // Validate baseDir before any path operations
-      // Use options.imageDir (set by batch routes from runtime IMAGE_DIR or app setting)
-      const baseDir = options?.imageDir || process.env.IMAGE_DIR;
+      // Validate baseDir - only use server-configured IMAGE_DIR
+      // Reject any attempt to override via options to prevent directory escape
+      const baseDir = process.env.IMAGE_DIR;
       if (!baseDir) {
         throw new Error('IMAGE_DIR is required to process OCR items');
+      }
+      if (options?.imageDir && path.resolve(options.imageDir) !== path.resolve(baseDir)) {
+        throw new Error('Cannot override IMAGE_DIR via request options');
       }
 
       // Resolve and validate path first (security critical)

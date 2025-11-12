@@ -5,6 +5,7 @@
 
 const EventEmitter = require('events');
 const { randomUUID: uuidv4 } = require('node:crypto');
+const path = require('path');
 
 const ITEM_STATUS = {
   PENDING: 'pending',
@@ -49,6 +50,20 @@ class BatchManager extends EventEmitter {
     }
     if (items.length > this.maxQueueSize) {
       throw new Error(`Batch size ${items.length} exceeds maximum ${this.maxQueueSize}`);
+    }
+
+    // Enforce IMAGE_DIR containment to prevent path traversal
+    const imageDir = options.imageDir || process.env.IMAGE_DIR;
+    if (imageDir) {
+      const root = path.resolve(String(imageDir));
+      const invalidPaths = items.filter(({ path: p }) => {
+        const abs = path.isAbsolute(p) ? path.resolve(p) : path.resolve(root, p);
+        const rel = path.relative(root, abs);
+        return rel.startsWith('..') || path.isAbsolute(rel);
+      });
+      if (invalidPaths.length > 0) {
+        throw new Error(`${invalidPaths.length} item path(s) are outside IMAGE_DIR`);
+      }
     }
 
     // Always generate server-side job IDs; ignore any caller-supplied value
