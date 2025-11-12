@@ -176,33 +176,12 @@ class BatchManager extends EventEmitter {
     }));
   }
 
-```javascript
-  deleteJob(jobId) {
-    this._clearCleanupTimer(jobId);
-    const existed = this.jobs.delete(jobId);
-    if (existed) this.emit('jobDeleted', { jobId });
-    return existed;
-  }
-  this._clearCleanupTimer(jobId);
-  const existed = this.jobs.delete(jobId);
-  if (existed) this.emit('jobDeleted', { jobId });
-  return existed;
-}
-
 deleteJob(jobId) {
   this._clearCleanupTimer(jobId);
   const existed = this.jobs.delete(jobId);
   if (existed) this.emit('jobDeleted', { jobId });
   return existed;
 }
-    const existed = this.jobs.delete(jobId);
-    if (existed) this.emit('jobDeleted', { jobId });
-    return existed;
-  }
-    this._clearCleanupTimer(jobId);
-    this.jobs.delete(jobId);
-    this.emit('jobDeleted', { jobId });
-  }
 
   startJob(jobId) {
     const job = this.jobs.get(jobId);
