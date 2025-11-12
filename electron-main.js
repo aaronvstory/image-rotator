@@ -30,7 +30,9 @@ function createWindow() {
   const APP_URL = `http://${WINDOW_HOST}:${SERVER_PORT}`;
   (function waitForServer() {
     http.get(APP_URL, () => {
-      mainWindow.loadURL(APP_URL);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL(APP_URL);
+      }
     }).on('error', () => setTimeout(waitForServer, 250));
   })();
 }

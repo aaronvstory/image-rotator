@@ -302,8 +302,7 @@ app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
   }
   try {
     const files = await checkResultFiles(requestedPath);
-```suggestion
-res.json({ success: true, has: Boolean(files.json || files.txt) });
+    res.json({ success: true, has: Boolean(files.json || files.txt) });
   } catch (error) {
     console.error('Error checking OCR files', error);
     res.status(500).json({ success: false, error: 'Failed to check OCR files' });

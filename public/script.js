@@ -15,7 +15,6 @@ class ImageManipulator {
         this.pager = new Pager(Number(localStorage.getItem('pageSize')) || 150);
 
         // OCR viewer
-```suggestion
         this.ocrViewer = (window.OCRViewer ? new window.OCRViewer() : null);
         window.ocrViewer = this.ocrViewer;
 

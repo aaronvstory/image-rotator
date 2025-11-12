@@ -110,9 +110,10 @@ class BatchProcessor {
       }
 
       // Validate baseDir before any path operations
-      const baseDir = options?.imageDir || process.env.IMAGE_DIR;
+      // Security: Never trust client-supplied imageDir; use server-configured IMAGE_DIR only
+      const baseDir = process.env.IMAGE_DIR;
       if (!baseDir) {
-        throw new Error('IMAGE_DIR (or options.imageDir) is required to process OCR items');
+        throw new Error('IMAGE_DIR is required to process OCR items');
       }
 
       // Resolve and validate path first (security critical)
