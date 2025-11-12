@@ -3,7 +3,7 @@
  * Pure vanilla JavaScript, converted from React patterns
  */
 
-class BatchSelection {
+export default class BatchSelection {
   constructor() {
     this.selectedIds = new Set();
     this.allImageIds = [];

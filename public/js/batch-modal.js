@@ -2,7 +2,7 @@
  * Batch Modal - Display batch progress and results
  */
 
-class BatchModal {
+export default class BatchModal {
   constructor() {
     this.modal = null;
     this.isOpen = false;

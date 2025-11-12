@@ -1,4 +1,8 @@
 // BatchController.js - Module for batch processing controls
+import BatchSelection from '../batch-selection.js';
+import BatchModal from '../batch-modal.js';
+import BatchProgress from '../batch-progress.js';
+
 export default class BatchController {
     constructor(imageManipulator) {
         this.imageManipulator = imageManipulator;

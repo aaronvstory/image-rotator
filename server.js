@@ -248,7 +248,8 @@ app.post('/api/ocr-results/save', async (req, res) => {
     if (!resolvedImagePath) {
       return res.status(403).json({ error: 'Image not within configured directory' });
     }
-        // Use existing file if present; otherwise choose a single canonical target
+
+    // Use existing file if present; otherwise choose a single canonical target
     const existing = await checkResultFiles(resolvedImagePath);
     let target;
     if (mode === 'json') {
@@ -260,7 +261,8 @@ app.post('/api/ocr-results/save', async (req, res) => {
     if (!validation.valid) {
       return res.status(403).json({ error: validation.error });
     }
-    targets = [validation.path];  } else if (fp) {
+    targets = [validation.path];
+  } else if (fp) {
     const validation = await validateOCRPath(fp, IMAGE_DIR, VALID_RESULT_SUFFIXES);
     if (!validation.valid) {
       return res.status(403).json({ error: validation.error });
@@ -281,7 +283,9 @@ app.post('/api/ocr-results/save', async (req, res) => {
   }
 
   try {
-    // Write exactly one validated file\r\n    await writeFileAtomic(targets[0], payload);\r\n    res.json({ success: true, paths: targets });
+    // Write exactly one validated file
+    await writeFileAtomic(targets[0], payload);
+    res.json({ success: true, paths: targets });
   } catch (error) {
     console.error('Failed to save OCR results', error);
     res.status(500).json({ error: 'Failed to save OCR results' });
