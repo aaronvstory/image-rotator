@@ -15,10 +15,7 @@ async function writeFileAtomic(filePath, content) {
   // Use a unique temp directory per write to avoid collisions across concurrent calls.
 const tmpBase = await fs.mkdtemp(path.join(dir, '.ocr-tmp-'));
 const tempPath = path.join(tmpBase, `${path.basename(filePath)}.tmp`);
-  await fs.mkdir(tmpBase, { recursive: true });
-
-  const tempPath = path.join(tmpBase, `${path.basename(filePath)}.tmp`);
-  const handle = await fs.open(tempPath, 'wx'); // exclusive create; fail if already exists
+const handle = await fs.open(tempPath, 'wx');
 
   try {
     const payload = (typeof content === 'string')
