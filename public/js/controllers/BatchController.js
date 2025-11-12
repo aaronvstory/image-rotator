@@ -7,7 +7,7 @@ export default class BatchController {
     constructor(imageManipulator) {
         this.imageManipulator = imageManipulator;
         this.batchSelection = new BatchSelection();
-        this.batchModal = new BatchModal();
+        this.batchModal = new BatchModal(this.imageManipulator);
         this.batchProgressClient = new BatchProgress();
         this._batchStartInFlight = false;
     }
@@ -172,3 +172,4 @@ export default class BatchController {
 }
 
 // End of BatchController.js
+

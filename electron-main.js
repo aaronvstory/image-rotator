@@ -1,6 +1,5 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
-const path = require('path');
-const { spawn } = require('child_process');
+
+const http = require('http');
 
 let mainWindow;
 let serverProcess;
@@ -26,20 +25,12 @@ function createWindow() {
   // Start Express server
   startServer();
 
-  // Load the app after server starts. If you add a readiness signal later, replace this timeout.
-  setTimeout(() => {
-    mainWindow.loadURL(`http://${WINDOW_HOST}:${SERVER_PORT}`);
-  }, 1500);
-
-  // Open DevTools in development
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
-  }
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-    stopServer();
-  });
+  const APP_URL = `http://${WINDOW_HOST}:${SERVER_PORT}`;
+  (function waitForServer() {
+    http.get(APP_URL, () => {
+      mainWindow.loadURL(APP_URL);
+    }).on('error', () => setTimeout(waitForServer, 250));
+  })();
 }
 
 function startServer() {
@@ -110,3 +101,6 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   stopServer();
 });
+
+
+

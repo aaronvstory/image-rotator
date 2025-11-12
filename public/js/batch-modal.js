@@ -3,7 +3,7 @@
  */
 
 export default class BatchModal {
-  constructor() {
+  constructor(imageManipulator) {
     this.modal = null;
     this.isOpen = false;
     this.currentJobId = null;
@@ -11,6 +11,7 @@ export default class BatchModal {
     this.startTime = null;
     this.isComplete = false;
     this.currentFilter = 'all';
+    this.imageManipulator = imageManipulator || null;
     this.createModal();
   }
 
@@ -216,6 +217,8 @@ export default class BatchModal {
       this.progressClient = null;
       console.error('BatchModal: invalid progress client supplied; skipping progress tracking.');
     }
+    // Keep reattach pill visible while running
+    this._ensureReattachPillVisible(true);
   }
 
   /**
@@ -323,6 +326,29 @@ export default class BatchModal {
     this.handleUpdate(data);
     const progressTime = this._query('#batchProgressTime');
     if (progressTime) progressTime.textContent = 'Complete';
+
+    // Sync grid model and hide reattach pill
+    try {
+      const items = Array.isArray(data?.items) ? data.items : [];
+      if (this.imageManipulator && Array.isArray(this.imageManipulator.images) && items.length) {
+        const completedOrSkipped = new Set(
+          items.filter((it) => it?.path && (it.status === 'completed' || it.status === 'skipped')).map((it) => it.path)
+        );
+        this.imageManipulator.images.forEach((img) => {
+          if (completedOrSkipped.has(img.fullPath)) {
+            img.hasOCRResults = true;
+          }
+        });
+        if (typeof this.imageManipulator.renderImages === 'function') {
+          this.imageManipulator.renderImages();
+        }
+        if (typeof this.imageManipulator.updateStatistics === 'function') {
+          this.imageManipulator.updateStatistics();
+        }
+      }
+    } catch {}
+    this._ensureReattachPillVisible(false);
+    this._ensureReattachPillVisible(!this.isComplete && !!this.currentJobId);
   }
 
   /**
@@ -420,6 +446,37 @@ export default class BatchModal {
     this._query('#batchPauseBtn')?.classList.add('hidden');
     this._query('#batchResumeBtn')?.classList.remove('hidden');
   }
+
+  _ensureReattachPillVisible(visible) {
+    const pill = document.getElementById('batchReattachPill');
+    if (!pill) return;
+    pill.classList.toggle('hidden', !visible);
+    const handler = () => this._onReopenClick();
+    try { pill.removeEventListener('click', handler); } catch {}
+    if (visible) {
+      pill.addEventListener('click', handler);
+    }
+  }
+
+  _onReopenClick() {
+    if (!this.currentJobId || !this.progressClient) return;
+    // Reopen modal and reconnect progress
+    this.modal.classList.remove('hidden');
+    this.isOpen = true;
+    if (typeof this.progressClient.reconnect === 'function') {
+      this.progressClient.reconnect(this.currentJobId, {
+        onUpdate: (d) => this.handleUpdate(d),
+        onComplete: (d) => this.handleComplete(d),
+        onError: (e) => this.handleError(e)
+      });
+    } else if (typeof this.progressClient.connect === 'function') {
+      this.progressClient.connect(this.currentJobId, {
+        onUpdate: (d) => this.handleUpdate(d),
+        onComplete: (d) => this.handleComplete(d),
+        onError: (e) => this.handleError(e)
+      });
+    }
+  }
 }
 
 BatchModal.calculateProgress = function(stats) {
@@ -444,3 +501,19 @@ BatchModal.formatTimeEstimate = function(itemsRemaining, avgTimePerItem) {
   const hours = Math.ceil(minutes / 60);
   return `~${hours}h remaining`;
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-// Image Manipulator v2.0 - Client-side JavaScript Application
+﻿// Image Manipulator v2.0 - Client-side JavaScript Application
 import BatchController from './js/controllers/BatchController.js';
 import Pager from './js/pager.js';
 import { setupBatchControls } from './js/enhanced-features.js';
@@ -37,6 +37,16 @@ class ImageManipulator {
                     imageManipulator: this,
                     getImages: () => this.images || []
                 });
+            }
+            // Ensure reattach pill exists in header
+            const header = document.querySelector('.header-content');
+            if (header && !document.getElementById('batchReattachPill')) {
+                const btn = document.createElement('button');
+                btn.id = 'batchReattachPill';
+                btn.className = 'btn btn-secondary hidden';
+                btn.title = 'Reopen running batch';
+                btn.textContent = 'Batch running • View';
+                header.appendChild(btn);
             }
         };
 
@@ -930,3 +940,7 @@ document.addEventListener('keydown', (e) => {
         });
     }
 });
+
+
+
+

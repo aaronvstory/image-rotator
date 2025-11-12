@@ -71,8 +71,7 @@ export default class BatchProgress {
       this._startPolling();
     }
   }
-
-  disconnect() {
+    disconnect() {
     this.disconnectSSE();
     if (this._pollTimer) {
       clearTimeout(this._pollTimer);
@@ -314,3 +313,9 @@ export default class BatchProgress {
     }
   }
 }
+
+
+
+
+
+

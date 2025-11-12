@@ -50,16 +50,19 @@ async function resolveImagePath(imagePath, imageDir) {
     return null;
   }
   try {
-    const root = await toRealOrResolved(imageDir);
-    if (!root) return null;
-
+    const rootReal = await fs.realpath(path.resolve(String(imageDir)));
     const normalizedInput = path.normalize(imagePath);
     const candidate = path.isAbsolute(normalizedInput)
       ? normalizedInput
-      : path.resolve(root, normalizedInput);
-    const abs = await toRealOrResolved(candidate);
-    if (!abs) return null;
-    return (await isPathInside(abs, root)) ? abs : null;
+      : path.resolve(rootReal, normalizedInput);
+    const abs = await fs.realpath(candidate).catch(async (e) => {
+      if (e && e.code === 'ENOENT') {
+        const parentReal = await fs.realpath(path.dirname(candidate)).catch(() => null);
+        return parentReal ? path.join(parentReal, path.basename(candidate)) : path.resolve(candidate);
+      }
+      throw e;
+    });
+    return (await isPathInside(abs, rootReal)) ? abs : null;
   } catch {
     return null;
   }
@@ -78,9 +81,11 @@ async function validateOCRPath(fp, imageDir, validSuffixes = []) {
     return { valid: false, error: 'Invalid OCR results file' };
   }
   try {
-    const root = await toRealOrResolved(imageDir);
-    const abs = await toRealOrResolved(fp);
-    if (!root || !abs || !(await isPathInside(abs, root))) {
+    const rootReal = await fs.realpath(path.resolve(String(imageDir)));
+    const parentReal = await fs.realpath(path.resolve(path.dirname(fp))).catch(() => null);
+    const abs = parentReal ? path.join(parentReal, path.basename(fp)) : path.resolve(fp);
+    const inside = await isPathInside(abs, rootReal);
+    if (!inside) {
       return { valid: false, error: 'Path must be within image directory' };
     }
 
@@ -105,3 +110,4 @@ module.exports = {
   resolveImagePath,
   validateOCRPath,
 };
+
