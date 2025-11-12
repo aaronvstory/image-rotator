@@ -30,7 +30,7 @@ async function writeFileAtomic(filePath, content) {
 
   // Atomic replace into final location; best-effort cleanup on failure.
   try {
-    await fs.rename(tempPath, filePath);
+await fs.copyFile(tempPath, filePath, require('fs').constants.COPYFILE_EXCL);
   } catch (error) {
     if (error && error.code === 'EXDEV') {
       try {
