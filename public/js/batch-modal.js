@@ -479,9 +479,10 @@ class BatchModal {
       });
     }
 
-    window.BatchModal = BatchModal;
   }
 }
+
+window.BatchModal = BatchModal;
 
 BatchModal.calculateProgress = function (stats) {
   if (!stats || !stats.total) return 0;

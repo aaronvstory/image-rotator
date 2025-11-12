@@ -107,10 +107,14 @@ router.get('/progress/:jobId', (req, res) => {
 
   if (allowedOrigins.length) {
     const requestOrigin = req.get('origin') || '';
-    if (!allowedOrigins.includes(requestOrigin)) {
+    // Allow requests without Origin header (same-origin SSE) or with matching origin
+    if (requestOrigin && !allowedOrigins.includes(requestOrigin)) {
       return res.status(403).json({ error: 'Forbidden origin for progress stream' });
     }
-    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+    // Set CORS header only if we have a request origin; omit for same-origin requests
+    if (requestOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+    }
   }
 
   res.writeHead(200, {

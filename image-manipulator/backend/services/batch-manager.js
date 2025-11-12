@@ -140,14 +140,8 @@ class BatchManager extends EventEmitter {
       status: JOB_STATUS.QUEUED,
       options: mergedOptions,
       controls: {
-```javascript
-  deleteJob(jobId) {
-    this._clearCleanupTimer(jobId);
-    const existed = this.jobs.delete(jobId);
-    if (existed) this.emit('jobDeleted', { jobId });
-    return existed;
-  }
         cancelRequested: false,
+        paused: false,
         chunkSize: mergedOptions.chunkSize
       },
       stats: {
@@ -182,12 +176,12 @@ class BatchManager extends EventEmitter {
     }));
   }
 
-deleteJob(jobId) {
-  this._clearCleanupTimer(jobId);
-  const existed = this.jobs.delete(jobId);
-  if (existed) this.emit('jobDeleted', { jobId });
-  return existed;
-}
+  deleteJob(jobId) {
+    this._clearCleanupTimer(jobId);
+    const existed = this.jobs.delete(jobId);
+    if (existed) this.emit('jobDeleted', { jobId });
+    return existed;
+  }
 
   startJob(jobId) {
     const job = this.jobs.get(jobId);
@@ -230,6 +224,7 @@ deleteJob(jobId) {
 
     return chunk;
   }
+
   updateItemStatus(jobId, itemId, newStatus, meta = {}) {
     const job = this.jobs.get(jobId);
     if (!job) return;

@@ -30,13 +30,16 @@ function createWindow() {
   startServer();
 
   const APP_URL = `http://${WINDOW_HOST}:${SERVER_PORT}`;
+
   const waitForServer = (attempt = 0) => {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return;
     }
-const request = http.request(APP_URL, { method: 'HEAD' }, (response) => {
+
     const request = http.get(APP_URL, (response) => {
+      // Consume response data to free resources
       response.resume();
+
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.loadURL(APP_URL);
       }
@@ -47,15 +50,18 @@ const request = http.request(APP_URL, { method: 'HEAD' }, (response) => {
         showServerError(APP_URL);
         return;
       }
+
       setTimeout(() => waitForServer(attempt + 1), SERVER_WAIT_INTERVAL_MS);
     });
 
     request.setTimeout(2000, () => {
       request.destroy();
+
       if (attempt + 1 >= MAX_SERVER_WAIT_ATTEMPTS) {
         showServerError(APP_URL);
         return;
       }
+
       setTimeout(() => waitForServer(attempt + 1), SERVER_WAIT_INTERVAL_MS);
     });
   };

@@ -183,7 +183,7 @@ const wireQuickSelectControls = (controller, ctx) => {
   }
 };
 
-export function setupBatchControls(ctx = {}) {
+function setupBatchControls(ctx = {}) {
   const controller = ctx.controller;
   const manipulator = ctx.imageManipulator || controller?.imageManipulator || window.imageManipulator;
   if (!controller || !manipulator) return;
@@ -196,3 +196,6 @@ export function setupBatchControls(ctx = {}) {
   wireQuickSelectControls(controller, ctx);
   manipulator.updateStatistics();
 }
+
+// Attach to window for compatibility with classic script loading
+window.setupBatchControls = setupBatchControls;
