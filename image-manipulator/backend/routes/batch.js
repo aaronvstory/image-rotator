@@ -62,7 +62,7 @@ router.post('/start', async (req, res) => {
 
     const sanitized = [];
     for (const item of items) {
-      const abs = path.resolve(String(item.path || ''));
+const abs = path.resolve(resolvedImageRoot, String(item.path || ''));
       if (!(await isPathInside(abs, resolvedImageRoot))) {
         return res.status(400).json({
           success: false,
