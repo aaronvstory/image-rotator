@@ -3,7 +3,9 @@ const OCRService = require('../../../server-ocr');
 
 class OCRProvider {
   constructor() {
-    this.apiKey = process.env.OPENROUTER_API_KEY || null;
+    const rawKey = process.env.OPENROUTER_API_KEY ?? process.env.OCR_API_KEY ?? null;
+    const trimmedKey = typeof rawKey === 'string' ? rawKey.trim() : '';
+    this.apiKey = trimmedKey.length > 0 ? trimmedKey : null;
     this.service = this.apiKey ? new OCRService(this.apiKey) : null;
     this.initialized = false;
   }
@@ -16,7 +18,7 @@ class OCRProvider {
 
   async processImage(imagePath, options = {}) {
     if (!this.apiKey || !this.service) {
-      throw new Error('OPENROUTER_API_KEY environment variable is required before processing OCR jobs');
+      throw new Error('An OCR API key environment variable is required before processing OCR jobs');
     }
     if (!this.initialized) {
       await this.initialize();

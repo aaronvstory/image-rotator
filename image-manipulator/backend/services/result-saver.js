@@ -95,9 +95,20 @@ async function validateTargets(paths = [], imageDir, suffixes) {
 async function saveOCRResults(imagePath, result, options = {}) {
   const {
     outputFormat = ['json', 'txt'],
-    overwrite = 'skip',
-    imageDir = process.env.IMAGE_DIR || path.dirname(path.resolve(imagePath))
+    overwrite = 'skip'
   } = options;
+
+  const configuredRoot = options.imageDir || process.env.IMAGE_DIR;
+  if (!configuredRoot) {
+    throw new Error('IMAGE_DIR is not configured for OCR result saving');
+  }
+
+  let imageDir;
+  try {
+    imageDir = await fs.realpath(path.resolve(String(configuredRoot)));
+  } catch (error) {
+    throw new Error('IMAGE_DIR is not accessible for OCR result saving');
+  }
 
   const formats = Array.isArray(outputFormat) && outputFormat.length
     ? outputFormat.map((fmt) => fmt.toLowerCase())

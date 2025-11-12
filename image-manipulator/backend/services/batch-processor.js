@@ -35,13 +35,15 @@ class BatchProcessor {
         const currentJob = this.batchManager.getJob(jobId);
         if (!currentJob) break;
         if (currentJob.controls.cancelRequested) break;
+
         if (currentJob.controls.paused) {
           await new Promise((resolve) => setTimeout(resolve, 1000));
           continue;
         }
 
         const chunk = this.batchManager.getNextChunk(jobId);
-        if (chunk.length === 0) {
+
+        if (!chunk || chunk.length === 0) {
           if (currentJob.controls.paused) {
             await new Promise((resolve) => setTimeout(resolve, 500));
             continue;
@@ -52,10 +54,12 @@ class BatchProcessor {
         await this.processChunk(jobId, chunk);
         await new Promise((resolve) => setTimeout(resolve, 10));
       }
+
       this._ensureJobCompletion(jobId);
     } finally {
       const storedRuntime = this.processingJobs.get(jobId);
       const provider = storedRuntime?.provider;
+
       if (provider) {
         try {
           if (typeof provider.shutdown === 'function') {
@@ -67,6 +71,7 @@ class BatchProcessor {
           console.warn('Error shutting down OCR provider', error);
         }
       }
+
       this.processingJobs.delete(jobId);
       this._ensureJobCompletion(jobId);
     }
@@ -237,9 +242,11 @@ class BatchProcessor {
     const nextStatus = (stats.failed || 0) > 0
       ? JOB_STATUS.COMPLETED_WITH_ERRORS
       : JOB_STATUS.COMPLETED;
+
     job.status = nextStatus;
     job.completedAt = new Date().toISOString();
     this.batchManager.emit('jobCompleted', { jobId, stats, status: nextStatus });
+
     if (typeof this.batchManager._scheduleCleanup === 'function') {
       this.batchManager._scheduleCleanup(jobId);
     }

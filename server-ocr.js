@@ -231,7 +231,10 @@ Return ONLY the JSON object, no other text.`;
    * Save OCR results to JSON and TXT files
    */
   async saveOCRResults(imagePath, ocrData) {
-    const imageDir = process.env.IMAGE_DIR || path.dirname(imagePath);
+    const imageDir = process.env.IMAGE_DIR;
+    if (!imageDir) {
+      throw new Error('IMAGE_DIR is not configured for OCR persistence');
+    }
     await persistOCRResults(imagePath, ocrData, {
       outputFormat: ["json", "txt"],
       overwrite: "overwrite",

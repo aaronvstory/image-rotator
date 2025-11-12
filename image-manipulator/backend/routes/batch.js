@@ -8,11 +8,16 @@ const router = express.Router();
 const path = require('path');
 const { isPathInside } = require('../utils/path-utils');
 const fs = require('fs').promises;
-const { BatchManager } = require('../services/batch-manager');
+const { BatchManager, JOB_STATUS } = require('../services/batch-manager');
 const { BatchProcessor } = require('../services/batch-processor');
 
 const batchManager = new BatchManager();
 const batchProcessor = new BatchProcessor(batchManager);
+const TERMINAL_STATUSES = new Set([
+  JOB_STATUS.COMPLETED,
+  JOB_STATUS.COMPLETED_WITH_ERRORS,
+  JOB_STATUS.CANCELLED
+]);
 
 router.post('/start', async (req, res) => {
   try {
@@ -29,7 +34,9 @@ router.post('/start', async (req, res) => {
       return res.status(400).json({ success: false, error: 'IMAGE_DIR is not accessible' });
     }
 
-    if (!process.env.OPENROUTER_API_KEY) {
+    const apiKeyRaw = process.env.OPENROUTER_API_KEY ?? process.env.OCR_API_KEY;
+    const apiKey = typeof apiKeyRaw === 'string' ? apiKeyRaw.trim() : '';
+    if (!apiKey) {
       return res.status(400).json({ success: false, error: 'OCR API key missing (OPENROUTER_API_KEY)' });
     }
 
@@ -53,7 +60,7 @@ router.post('/start', async (req, res) => {
     }
 
     const jobOptions = { ...options, imageDir: resolvedImageRoot };
-    const jobId = batchManager.createJob(sanitized, jobOptions);
+    const jobId = await batchManager.createJob(sanitized, jobOptions);
     batchProcessor.processJob(jobId).catch((error) => {
       console.error(`Batch job ${jobId} failed:`, error);
     });
@@ -155,27 +162,60 @@ router.get('/status/:jobId', (req, res) => {
 });
 
 router.post('/pause/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  const job = batchManager.getJob(jobId);
+  if (!job) {
+    return res.status(404).json({ success: false, error: 'Job not found' });
+  }
+  if (TERMINAL_STATUSES.has(job.status)) {
+    return res.status(409).json({ success: false, error: 'Job can no longer be paused' });
+  }
+  if (job.status === JOB_STATUS.PAUSED) {
+    return res.json({ success: true, jobId, status: job.status });
+  }
+
   try {
-    batchManager.pauseJob(req.params.jobId);
-    res.json({ success: true, jobId: req.params.jobId });
+    batchManager.pauseJob(jobId);
+    res.json({ success: true, jobId, status: JOB_STATUS.PAUSED });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 router.post('/resume/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  const job = batchManager.getJob(jobId);
+  if (!job) {
+    return res.status(404).json({ success: false, error: 'Job not found' });
+  }
+  if (TERMINAL_STATUSES.has(job.status)) {
+    return res.status(409).json({ success: false, error: 'Job cannot be resumed' });
+  }
+  if (job.status === JOB_STATUS.PROCESSING && !job.controls.paused) {
+    return res.json({ success: true, jobId, status: job.status });
+  }
+
   try {
-    batchManager.resumeJob(req.params.jobId);
-    res.json({ success: true, jobId: req.params.jobId });
+    batchManager.resumeJob(jobId);
+    res.json({ success: true, jobId, status: JOB_STATUS.PROCESSING });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 router.post('/cancel/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  const job = batchManager.getJob(jobId);
+  if (!job) {
+    return res.status(404).json({ success: false, error: 'Job not found' });
+  }
+  if (TERMINAL_STATUSES.has(job.status)) {
+    return res.status(409).json({ success: false, error: 'Job is already finished' });
+  }
+
   try {
-    batchManager.cancelJob(req.params.jobId);
-    res.json({ success: true, jobId: req.params.jobId });
+    batchManager.cancelJob(jobId);
+    res.json({ success: true, jobId, status: JOB_STATUS.CANCELLED });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -186,9 +226,18 @@ router.get('/jobs', (req, res) => {
 });
 
 router.delete('/job/:jobId', (req, res) => {
+  const { jobId } = req.params;
+  const job = batchManager.getJob(jobId);
+  if (!job) {
+    return res.status(404).json({ success: false, error: 'Job not found' });
+  }
+  if (TERMINAL_STATUSES.has(job.status)) {
+    return res.status(409).json({ success: false, error: 'Job can no longer be deleted' });
+  }
+
   try {
-    batchManager.deleteJob(req.params.jobId);
-    res.json({ success: true, jobId: req.params.jobId });
+    batchManager.deleteJob(jobId);
+    res.json({ success: true, jobId });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

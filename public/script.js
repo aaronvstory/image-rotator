@@ -1,5 +1,10 @@
 ﻿// Image Manipulator v2.0 - Client-side JavaScript Application
 // Dependencies loaded via script tags: BatchController, Pager, setupBatchControls
+
+const getStableSelectionId = (image = {}) => (
+    image.fullPath || image.relativePath || image.path || image.id
+);
+
 class ImageManipulator {
     constructor() {
         this.images = [];
@@ -10,14 +15,14 @@ class ImageManipulator {
         const storedHoverDelay = parseInt(localStorage.getItem('hoverDelayMs'), 10);
         this.hoverDelayMs = Number.isFinite(storedHoverDelay) ? storedHoverDelay : 2000;
         this.currentFilter = 'all'; // all, processed, unprocessed
-        this.pager = new window.Pager(Number(localStorage.getItem('pageSize')) || 150);
+        this.pager = (window.Pager ? new window.Pager(Number(localStorage.getItem('pageSize')) || 150) : null);
 
         // OCR viewer
         this.ocrViewer = (window.OCRViewer ? new window.OCRViewer() : null);
         window.ocrViewer = this.ocrViewer;
 
         // Batch controller
-        this.batchController = new window.BatchController(this);
+        this.batchController = (window.BatchController ? new window.BatchController(this) : null);
         this.init();
     }
 
@@ -27,10 +32,12 @@ class ImageManipulator {
             this.loadCurrentDirectory();
             this.setupGridControls();
             this.setupPaginationControls();
-            this.batchController.init();
+            if (this.batchController) {
+                this.batchController.init();
+            }
 
-            if (typeof setupBatchControls === 'function') {
-                setupBatchControls({
+            if (typeof window.setupBatchControls === 'function' && this.batchController) {
+                window.setupBatchControls({
                     controller: this.batchController,
                     imageManipulator: this,
                     getImages: () => this.images || []
@@ -443,7 +450,9 @@ class ImageManipulator {
         }
         grid.innerHTML = '';
 
-        this.batchController.updateAvailableImages(this.images);
+        if (this.batchController) {
+            this.batchController.updateAvailableImages(this.images);
+        }
         if (this.pager) {
             this.pager.setTotal(this.images.length);
         }
@@ -505,8 +514,9 @@ class ImageManipulator {
         card.dataset.index = index;
 
         const thumbnailUrl = `/api/thumbnail/${encodeURIComponent(image.relativePath)}?t=${Date.now()}`;
-        const selectionId = image.fullPath || image.relativePath || image.id;
-        const isSelected = this.batchController.batchSelection.isSelected(selectionId);
+        const selectionId = getStableSelectionId(image);
+        const batchSelection = this.batchController?.batchSelection;
+        const isSelected = batchSelection ? batchSelection.isSelected(selectionId) : false;
         const encodedId = encodeURIComponent(selectionId);
 
         // Add OCR processed badge if results exist
@@ -552,7 +562,9 @@ class ImageManipulator {
 
         // Add hover preview functionality
         this.setupHoverPreview(card, image);
-        this.batchController.processImageCard(card, image);
+        if (this.batchController) {
+            this.batchController.processImageCard(card, image);
+        }
 
         return card;
     }
@@ -579,12 +591,13 @@ class ImageManipulator {
         }
 
         // Update all checkboxes
+        const batchSelection = this.batchController?.batchSelection;
         this.images.forEach(image => {
-            const selectionId = image.fullPath || image.relativePath || image.id;
+            const selectionId = getStableSelectionId(image);
             const encodedSelectionId = encodeURIComponent(selectionId);
             const checkbox = document.querySelector(`input[data-image-id="${encodedSelectionId}"]`);
             if (checkbox) {
-                checkbox.checked = this.batchController.batchSelection.isSelected(selectionId);
+                checkbox.checked = batchSelection ? batchSelection.isSelected(selectionId) : false;
             }
         });
     }

@@ -29,7 +29,6 @@ Thumbs.db
 # Editor directories and files
 .vscode/
 .idea/
-.history/
 *.swp
 *.swo
 *~
@@ -111,6 +110,7 @@ OCR_*.md
 *_DOCUMENTATION.md
 *_RESULTS.md
 *_TEST_*.md
+tunnell.md
 
 # Archive directory (created by /organize)
 archive/

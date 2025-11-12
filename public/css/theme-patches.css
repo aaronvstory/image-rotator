@@ -11,6 +11,17 @@
   opacity: 1;
 }
 
+.image-card:focus-within .image-controls {
+  opacity: 1;
+}
+
+@media (hover: none),
+(pointer: coarse) {
+  .image-card .image-controls {
+    opacity: 1;
+  }
+}
+
 .btn-rotate {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);

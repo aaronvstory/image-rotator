@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Batch Manager
  * Keeps in-memory state for each batch job (queue, stats, controls).
@@ -6,6 +7,8 @@
 const EventEmitter = require('events');
 const { randomUUID: uuidv4 } = require('node:crypto');
 const path = require('path');
+const fs = require('fs').promises;
+const { resolveImagePath } = require('../utils/path-utils');
 
 const ITEM_STATUS = {
   PENDING: 'pending',
@@ -31,6 +34,8 @@ const DEFAULT_OPTIONS = {
   outputFormat: ['json', 'txt']
 };
 
+const MAX_RETRY_COUNT = 5;
+
 class BatchManager extends EventEmitter {
   constructor(options = {}) {
     super();
@@ -41,7 +46,7 @@ class BatchManager extends EventEmitter {
     this.jobTtlMs = typeof options.jobTtlMs === 'number' ? options.jobTtlMs : 60 * 60 * 1000;
   }
 
-  createJob(items, options = {}) {
+  async createJob(items, options = {}) {
     if (!Array.isArray(items) || items.length === 0) {
       throw new Error('Cannot create job with empty items array');
     }
@@ -54,15 +59,13 @@ class BatchManager extends EventEmitter {
 
     // Enforce IMAGE_DIR containment to prevent path traversal
     const imageDir = options.imageDir || process.env.IMAGE_DIR;
+    let rootReal = null;
     if (imageDir) {
-      const root = path.resolve(String(imageDir));
-      const invalidPaths = items.filter(({ path: p }) => {
-        const abs = path.isAbsolute(p) ? path.resolve(p) : path.resolve(root, p);
-        const rel = path.relative(root, abs);
-        return rel.startsWith('..') || path.isAbsolute(rel);
-      });
-      if (invalidPaths.length > 0) {
-        throw new Error(`${invalidPaths.length} item path(s) are outside IMAGE_DIR`);
+      const normalizedRoot = path.resolve(String(imageDir));
+      try {
+        rootReal = await fs.realpath(normalizedRoot);
+      } catch (error) {
+        throw new Error('IMAGE_DIR is not accessible');
       }
     }
 
@@ -81,18 +84,56 @@ class BatchManager extends EventEmitter {
       mergedOptions.chunkSize = Math.max(1, Math.min(configuredChunkSize, maxChunkSize));
     }
 
-    const queueItems = items.map((item, index) => ({
-      id: item.id || `${jobId}_item_${index}`,
-      path: item.path,
-      filename: item.filename || this._getFilename(item.path),
-      status: ITEM_STATUS.PENDING,
-      retries: 0,
-      error: null,
-      result: null,
-      savedFiles: null,
-      startedAt: null,
-      completedAt: null
-    }));
+    const queueItems = [];
+    const invalidPaths = [];
+
+    for (let index = 0; index < items.length; index++) {
+      const item = items[index];
+      let sanitizedPath;
+
+      if (rootReal) {
+        const resolved = await resolveImagePath(item.path, rootReal);
+        if (!resolved) {
+          invalidPaths.push(item.path);
+          continue;
+        }
+        sanitizedPath = resolved;
+      } else {
+        sanitizedPath = path.resolve(String(item.path));
+      }
+
+      queueItems.push({
+        id: item.id || `${jobId}_item_${index}`,
+        path: sanitizedPath,
+        filename: item.filename || this._getFilename(sanitizedPath),
+        status: ITEM_STATUS.PENDING,
+        retries: 0,
+        error: null,
+        result: null,
+        savedFiles: null,
+        startedAt: null,
+        completedAt: null
+      });
+    }
+
+    if (invalidPaths.length > 0) {
+      throw new Error(`${invalidPaths.length} item path(s) are outside IMAGE_DIR`);
+    }
+
+    if (rootReal) {
+      mergedOptions.imageDir = rootReal;
+    }
+
+    const configuredRetryCount = Number(mergedOptions.retryCount);
+    if (!Number.isFinite(configuredRetryCount) || configuredRetryCount < 0) {
+      mergedOptions.retryCount = this.defaultOptions.retryCount;
+    } else {
+      mergedOptions.retryCount = Math.max(0, Math.min(configuredRetryCount, MAX_RETRY_COUNT));
+    }
+
+    if (queueItems.length === 0) {
+      throw new Error('No valid items remain after path validation');
+    }
 
     const job = {
       id: jobId,
@@ -182,7 +223,6 @@ class BatchManager extends EventEmitter {
 
     return chunk;
   }
-
   updateItemStatus(jobId, itemId, newStatus, meta = {}) {
     const job = this.jobs.get(jobId);
     if (!job) return;

@@ -117,7 +117,31 @@ function listCandidatePaths(imagePath, type) {
 
 app.get('/api/directory', (req, res) => res.json({ success: true, directory: IMAGE_DIR }));
 
-app.post('/api/directory', async (req, res) => { const { directory } = req.body || {}; if (!directory) return res.status(400).json({ success: false, error: 'Directory path is required' }); try { await fs.access(directory); const s = await fs.stat(directory); if (!s.isDirectory()) return res.status(400).json({ success: false, error: 'Path is not a directory' }); IMAGE_DIR = directory; app.set('IMAGE_DIR', IMAGE_DIR); res.json({ success: true, directory: IMAGE_DIR }); } catch { return res.status(400).json({ success: false, error: 'Directory does not exist or is not accessible' }); } });
+app.post('/api/directory', async (req, res) => {
+  try {
+    const directoryInput = typeof req.body?.directory === 'string' ? req.body.directory.trim() : '';
+    if (!directoryInput) {
+      return res.status(400).json({ success: false, error: 'Directory path is required' });
+    }
+
+    const resolved = path.resolve(directoryInput);
+    await fs.access(resolved);
+    const stats = await fs.stat(resolved);
+    if (!stats.isDirectory()) {
+      return res.status(400).json({ success: false, error: 'Path is not a directory' });
+    }
+
+    const realDirectory = await fs.realpath(resolved);
+    IMAGE_DIR = realDirectory;
+    process.env.IMAGE_DIR = realDirectory;
+    app.set('IMAGE_DIR', IMAGE_DIR);
+
+    return res.json({ success: true, directory: IMAGE_DIR });
+  } catch (error) {
+    console.error('Failed to set IMAGE_DIR', error);
+    return res.status(400).json({ success: false, error: 'Directory does not exist or is not accessible' });
+  }
+});
 
 app.get('/api/images', async (req, res) => {
   if (!IMAGE_DIR) {
@@ -203,12 +227,20 @@ app.get('/api/ocr-results', async (req, res) => {
         return res.status(403).json({ error: validation.error });
       }
 
+      const ext = path.extname(validation.path).toLowerCase();
       const content = await fs.readFile(validation.path, 'utf-8');
       if (isRaw) {
         return res.type('text/plain').send(content);
       }
-      const parsed = JSON.parse(content);
-      return res.json(parsed);
+      if (ext !== '.json') {
+        return res.status(415).json({ error: 'Only JSON result files can be parsed as JSON' });
+      }
+      try {
+        const parsed = JSON.parse(content);
+        return res.json(parsed);
+      } catch {
+        return res.status(400).json({ error: 'Invalid JSON content' });
+      }
     }
 
     const resolvedImagePath = await resolveImagePath(imagePathParam, IMAGE_DIR);
@@ -226,9 +258,16 @@ app.get('/api/ocr-results', async (req, res) => {
     if (isRaw) {
       return res.type('text/plain').send(content);
     }
+    if (path.extname(targetPath).toLowerCase() !== '.json') {
+      return res.status(415).json({ error: 'Only JSON result files can be parsed as JSON' });
+    }
 
-    const parsed = JSON.parse(content);
-    return res.json(parsed);
+    try {
+      const parsed = JSON.parse(content);
+      return res.json(parsed);
+    } catch {
+      return res.status(400).json({ error: 'Invalid JSON content' });
+    }
   } catch (error) {
     console.error('Failed to read OCR results', error);
     return res.status(500).json({ error: 'Failed to read OCR results' });
