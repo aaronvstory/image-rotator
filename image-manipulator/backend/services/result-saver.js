@@ -1,7 +1,5 @@
 const fs = require('fs').promises;
 const path = require('path');
-const os = require('os');
-const crypto = require('crypto');
 const {
   JSON_SUFFIXES,
   TXT_SUFFIXES
@@ -16,7 +14,8 @@ async function writeFileAtomic(filePath, content) {
   const tmpBase = await fs.mkdtemp(path.join(dir, '.ocr-tmp-'));
   const tempPath = path.join(tmpBase, `${path.basename(filePath)}.tmp`);
 
-  const handle = await fs.open(tempPath, 'wx'); // exclusive create; fail if already exists
+  // Use exclusive create so we never clobber an existing file at this temp path.
+  const handle = await fs.open(tempPath, 'wx');
 
   try {
     const payload = (typeof content === 'string')
@@ -142,11 +141,13 @@ async function saveOCRResults(imagePath, result, options = {}) {
   const formats = Array.isArray(outputFormat) && outputFormat.length
     ? outputFormat.map((fmt) => fmt.toLowerCase())
     : ['json', 'txt'];
+
   const overwriteMode = overwrite === 'suffix'
     ? 'suffix'
     : overwrite === 'overwrite'
       ? 'overwrite'
       : 'skip';
+
   const files = {};
 
   const pickTargets = async (paths, suffixes) => {
@@ -200,4 +201,3 @@ module.exports = {
   saveOCRResults,
   writeFileAtomic
 };
-
