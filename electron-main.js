@@ -34,7 +34,7 @@ function createWindow() {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return;
     }
-
+const request = http.request(APP_URL, { method: 'HEAD' }, (response) => {
     const request = http.get(APP_URL, (response) => {
       response.resume();
       if (mainWindow && !mainWindow.isDestroyed()) {
