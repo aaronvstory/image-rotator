@@ -7,7 +7,7 @@ let mainWindow;
 let serverProcess;
 // Resolve server port/host from env so Electron builds can override defaults (0.0.0.0 may be required outside localhost).
 const parsedPort = Number(process.env.SERVER_PORT ?? process.env.PORT ?? process.env.APP_PORT);
-const SERVER_PORT = Number.isFinite(parsedPort) ? parsedPort : 3001;
+const SERVER_PORT = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 3001;
 const SERVER_HOST = process.env.SERVER_HOST || process.env.HOST || 'localhost';
 const WINDOW_HOST = SERVER_HOST === '0.0.0.0' ? '127.0.0.1' : SERVER_HOST;
 const MAX_SERVER_WAIT_ATTEMPTS = 60; // ~15 seconds at 250ms interval
