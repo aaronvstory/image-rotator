@@ -81,7 +81,7 @@ export default class BatchProgress {
       this._startPolling();
     }
   }
-    disconnect() {
+  disconnect() {
     this.disconnectSSE();
     if (this._pollTimer) {
       clearTimeout(this._pollTimer);
@@ -94,7 +94,7 @@ export default class BatchProgress {
     if (this.eventSource) {
       try {
         this.eventSource.close();
-      } catch {}
+      } catch { }
       this.eventSource = null;
     }
   }
@@ -122,8 +122,8 @@ export default class BatchProgress {
       this._handleUpdate(data);
 
       const done = data?.status === 'completed' ||
-                   data?.status === 'completed_with_errors' ||
-                   data?.status === 'cancelled';
+        data?.status === 'completed_with_errors' ||
+        data?.status === 'cancelled';
       if (!done) {
         this._pollTimer = setTimeout(() => this._pollOnce(), this._pollIntervalMs);
         this._pollIntervalMs = Math.min(
@@ -160,8 +160,8 @@ export default class BatchProgress {
 
     // Check if job is complete
     const isComplete = data.status === 'completed' ||
-                      data.status === 'completed_with_errors' ||
-                      data.status === 'cancelled';
+      data.status === 'completed_with_errors' ||
+      data.status === 'cancelled';
 
     if (isComplete) {
       this._notifyComplete(data);
@@ -215,7 +215,7 @@ export default class BatchProgress {
         let detail = '';
         try {
           detail = await response.text();
-        } catch {}
+        } catch { }
         console.error(`Error pausing job: HTTP ${response.status}`, detail || response.statusText);
         return false;
       }
@@ -241,7 +241,7 @@ export default class BatchProgress {
         let detail = '';
         try {
           detail = await response.text();
-        } catch {}
+        } catch { }
         console.error(`Error resuming job: HTTP ${response.status}`, detail || response.statusText);
         return false;
       }
@@ -267,7 +267,7 @@ export default class BatchProgress {
         let detail = '';
         try {
           detail = await response.text();
-        } catch {}
+        } catch { }
         console.error(`Error cancelling job: HTTP ${response.status}`, detail || response.statusText);
         return false;
       }

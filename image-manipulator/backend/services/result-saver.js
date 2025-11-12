@@ -57,7 +57,11 @@ async function saveTxtVariants(paths, data) {
   Object.entries(data)
     .filter(([key, value]) => value !== undefined && value !== null && typeof key === 'string')
     .forEach(([key, value]) => {
-      lines.push(`${key}: ${value}`);
+      // Serialize objects to JSON to prevent '[object Object]' in output
+      const displayValue = (typeof value === 'object' && value !== null)
+        ? JSON.stringify(value)
+        : value;
+      lines.push(`${key}: ${displayValue}`);
     });
 
   const payload = lines.join('\n');

@@ -65,7 +65,7 @@ async function checkResultFiles(imagePath) {
 
     return results;
   }
-  
+
   // Fallback if IMAGE_DIR not set (for backward compatibility)
   const { json: jsonCandidates, txt: txtCandidates } = getResultFileCandidates(imagePath);
   const results = { json: null, txt: null };
