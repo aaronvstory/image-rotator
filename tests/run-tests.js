@@ -5,6 +5,10 @@ const path = require('path');
 const testsDir = path.join(__dirname);
 let failures = 0;
 
+/**
+ * Write a message to the console.
+ * @param {*} msg - The value to write to stdout (will be formatted by console.log).
+ */
 function log(msg) { console.log(msg); }
 
 (async () => {

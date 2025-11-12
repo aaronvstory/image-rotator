@@ -13,6 +13,13 @@ const WINDOW_HOST = SERVER_HOST === '0.0.0.0' ? '127.0.0.1' : SERVER_HOST;
 const MAX_SERVER_WAIT_ATTEMPTS = 60; // ~15 seconds at 250ms interval
 const SERVER_WAIT_INTERVAL_MS = 250;
 
+/**
+ * Create the main application window, start the local server, and load the UI once the server is reachable.
+ *
+ * Starts the Express server, polls the local server URL until it responds (or a maximum number of attempts is reached),
+ * loads the app URL into the window when available, and replaces the window content with an error page if the server
+ * cannot be reached. Also attaches a window 'closed' handler that stops the server and clears the mainWindow reference.
+ */
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -75,6 +82,15 @@ function createWindow() {
   });
 }
 
+/**
+ * Spawn the local Express server as a child Node process and attach startup/exit handlers.
+ *
+ * Sets the module-level `serverProcess` to the spawned process, passes required environment
+ * variables (including `PORT`, `HOST`, and `ELECTRON_RUN_AS_NODE`), and inherits stdio so
+ * the server's output appears in the host console. On spawn error it shows an error dialog
+ * and loads an in-window server error screen; on process exit it logs the exit and, for
+ * non-zero exits, displays the in-window error screen and clears `serverProcess`.
+ */
 function startServer() {
   console.log('Starting Express server...');
 
@@ -110,6 +126,12 @@ function startServer() {
   });
 }
 
+/**
+ * Stops the spawned Express server process if one is running.
+ *
+ * Attempts to terminate the child process with `SIGTERM` and clears the internal `serverProcess` reference.
+ * If termination fails, a warning is emitted.
+ */
 function stopServer() {
   if (serverProcess) {
     console.log('Stopping Express server...');
@@ -122,6 +144,14 @@ function stopServer() {
   }
 }
 
+/**
+ * Display a user-facing error page in the main window when the local server is unreachable.
+ *
+ * If the main window is missing or destroyed, the function does nothing.
+ *
+ * @param {string} appUrl - The application URL the renderer attempted to reach (displayed to the user).
+ * @param {Error|undefined} [error] - Optional error whose message will be shown on the error page.
+ */
 function showServerError(appUrl, error) {
   if (!mainWindow || mainWindow.isDestroyed()) {
     return;
@@ -193,6 +223,5 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   stopServer();
 });
-
 
 

@@ -31,13 +31,38 @@ let IMAGE_DIR = process.env.IMAGE_DIR || null;
 app.set('IMAGE_DIR', IMAGE_DIR);
 const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff', '.bmp'];
 
+/**
+ * Check whether a filename has a supported image extension.
+ * @param {string} filename - The filename or path to examine.
+ * @returns {boolean} `true` if the filename's extension is one of the supported image extensions, `false` otherwise.
+ */
 function isImageFile(filename) { return SUPPORTED_EXTENSIONS.includes(path.extname(filename).toLowerCase()); }
 
+/**
+ * Determine whether OCR result files (JSON or TXT) exist for the given image.
+ * @param {string} imagePath - Path to the image file (relative to IMAGE_DIR or absolute).
+ * @returns {boolean} `true` if a JSON or TXT OCR result exists for the image, `false` otherwise.
+ */
 async function hasOCRResults(imagePath) {
   const files = await checkResultFiles(imagePath, IMAGE_DIR);
   return Boolean(files.json || files.txt);
 }
 
+/**
+ * Recursively scans a directory tree and returns metadata for all image files found.
+ *
+ * @param {string} dirPath - Absolute path of the directory to scan.
+ * @param {Object} [opts] - Optional scan controls.
+ * @param {boolean} [opts.checkOCRResults=true] - If true, include whether OCR results exist for each image.
+ * @param {Map<string, boolean>} [opts.ocrCache=new Map()] - Cache mapping image full paths to their `hasOCRResults` boolean to avoid repeated checks.
+ * @returns {Array<Object>} An array of image metadata objects; each object contains:
+ *   - filename: the image file name,
+ *   - fullPath: absolute path to the image,
+ *   - relativePath: path relative to the configured IMAGE_DIR,
+ *   - directory: the image's directory relative to IMAGE_DIR,
+ *   - hasOCRResults: `true` if OCR results exist for the image, `false` otherwise.
+ *   If an error occurs while scanning a subdirectory, the function continues and returns whatever images were accumulated.
+ */
 async function scanImagesRecursively(dirPath, opts = {}) {
   const { checkOCRResults = true, ocrCache = new Map() } = opts;
   const acc = [];
@@ -74,9 +99,27 @@ async function scanImagesRecursively(dirPath, opts = {}) {
   return acc;
 }
 
+/**
+ * Create a 150x150 JPEG thumbnail with a centered crop.
+ * @param {string|Buffer} p - Source image file path or buffer.
+ * @returns {Buffer} The generated JPEG image data as a Buffer (150×150, quality 85).
+ */
 async function generateThumbnail(p) { return sharp(p).resize(150, 150, { fit: 'cover', position: 'center' }).jpeg({ quality: 85 }).toBuffer(); }
+/**
+ * Create a JPEG preview that fits within 1200×900 pixels.
+ * @param {string|Buffer|Uint8Array} p - Source image path or image data.
+ * @returns {Buffer} JPEG image data for the generated preview (95% quality).
+ */
 async function generatePreview(p) { return sharp(p).resize(1200, 900, { fit: 'inside', withoutEnlargement: false }).jpeg({ quality: 95 }).toBuffer(); }
 
+/**
+ * Rotate an image file on disk by the given angle and persist the change atomically.
+ *
+ * @param {string} p - Filesystem path to the image to rotate.
+ * @param {number} deg - Rotation angle in degrees.
+ * @returns {boolean} `true` if the file was successfully rotated and written.
+ * @throws {Error} If the operation fails after retry attempts or if the written file is empty.
+ */
 async function rotateImage(p, deg) {
   const max = 3; let last;
   for (let i = 1; i <= max; i++) {
@@ -110,6 +153,12 @@ async function rotateImage(p, deg) {
 }
 
 
+/**
+ * Selects candidate OCR result file paths for an image in the requested format.
+ * @param {string} imagePath - Filesystem path of the source image used to derive result filenames.
+ * @param {'txt'|'json'} type - Desired OCR result format; either `'txt'` or `'json'`.
+ * @returns {string[]} An array of candidate file paths for OCR results in the specified format.
+ */
 function listCandidatePaths(imagePath, type) {
   const candidates = getResultFileCandidates(imagePath);
   return type === 'txt' ? candidates.txt : candidates.json;
@@ -374,7 +423,6 @@ app.listen(PORT, HOST, () => {
   }
   console.log('Rollback tag: v1-polished-ui');
 });
-
 
 
 

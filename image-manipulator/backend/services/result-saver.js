@@ -6,6 +6,14 @@ const {
 } = require('./skip-detector');
 const { validateOCRPath } = require('../utils/path-utils');
 
+/**
+ * Atomically writes content to the given file path, creating parent directories as needed and replacing any existing file.
+ *
+ * Writes the provided string or the JSON serialization of a non-string value to a uniquely-created temporary file and then atomically replaces the destination file. Handles cross-device copy fallbacks and performs best-effort cleanup of temporary files and directories.
+ *
+ * @param {string} filePath - Destination file path to write.
+ * @param {string|any} content - String content to write, or a value that will be JSON-serialized before writing.
+ */
 async function writeFileAtomic(filePath, content) {
   const dir = path.dirname(filePath);
   await fs.mkdir(dir, { recursive: true });
@@ -52,6 +60,12 @@ await fs.copyFile(tempPath, filePath, require('fs').constants.COPYFILE_EXCL);
   }
 }
 
+/**
+ * Generate candidate file paths by applying each suffix to the provided image path.
+ * @param {string} imagePath - Original image file path.
+ * @param {string[]} suffixes - Suffixes to append (for example ".json", ".txt", ".ocr.json"); if a suffix starts with ".ocr", an additional variant using the original file extension is produced.
+ * @returns {string[]} Array of normalized, unique candidate file paths.
+ */
 function buildPaths(imagePath, suffixes) {
   const normalizedOriginal = path.normalize(imagePath);
   const ext = path.extname(normalizedOriginal);
@@ -68,6 +82,15 @@ function buildPaths(imagePath, suffixes) {
   return Array.from(candidates);
 }
 
+/**
+ * Write the provided data as pretty-printed JSON to each target path.
+ *
+ * Serializes `data` using two-space indentation and writes the resulting JSON to every path in `paths`.
+ *
+ * @param {string[]} paths - Array of file paths to write the JSON payload to.
+ * @param {*} data - Value to serialize to JSON.
+ * @returns {string|undefined} The first target path written (`paths[0]`), or `undefined` if `paths` is empty.
+ */
 async function saveJSONVariants(paths, data) {
   const payload = JSON.stringify(data, null, 2);
   for (const target of paths) {
@@ -76,6 +99,21 @@ async function saveJSONVariants(paths, data) {
   return paths[0];
 }
 
+/**
+ * Write OCR results as a plain-text payload to each provided file path.
+ *
+ * The payload begins with an "OCR RESULTS FOR" header using `data.imagePath` (or "image")
+ * and a "Processed At" timestamp (using `data.processedAt` or the current ISO timestamp),
+ * followed by each enumerable string key from `data` as `key: value`. Object values are
+ * JSON-serialized to preserve their structure.
+ *
+ * @param {string[]} paths - Target file paths to write the TXT payload to. Each path will be written.
+ * @param {Object} data - OCR result data to serialize. Common properties:
+ *   - {string} [imagePath] - Original image name or path used in the header.
+ *   - {string} [processedAt] - ISO timestamp to include in the header.
+ *   - ...other keys containing values to include as `key: value` lines.
+ * @returns {string|undefined} The first path from `paths`, or `undefined` if `paths` is empty.
+ */
 async function saveTxtVariants(paths, data) {
   const lines = [
     `OCR RESULTS FOR: ${path.basename(data.imagePath || 'image')}`,
@@ -99,6 +137,11 @@ async function saveTxtVariants(paths, data) {
   return paths[0];
 }
 
+/**
+ * Determine whether a filesystem path is accessible.
+ * @param {string} candidate - Filesystem path to check.
+ * @returns {boolean} `true` if the path is accessible, `false` otherwise.
+ */
 async function pathExists(candidate) {
   try {
     await fs.access(candidate);
@@ -108,6 +151,13 @@ async function pathExists(candidate) {
   }
 }
 
+/**
+ * Validate candidate target paths against an image directory and allowed suffixes.
+ * @param {string[]} [paths] - Candidate file paths to validate.
+ * @param {string} imageDir - The image directory used as the validation base.
+ * @param {string[]} suffixes - Allowed suffixes used during validation.
+ * @returns {string[]} An array of validated, normalized paths that passed checks; empty if imageDir is not provided or no candidates are valid.
+ */
 async function validateTargets(paths = [], imageDir, suffixes) {
   if (!imageDir) return [];
   const valid = [];
@@ -120,6 +170,22 @@ async function validateTargets(paths = [], imageDir, suffixes) {
   return valid;
 }
 
+/**
+ * Save OCR results for an image in configured output formats and return written file paths.
+ *
+ * Saves the provided OCR result to one or more target files (JSON and/or TXT) under the configured IMAGE_DIR,
+ * selecting target paths according to the overwrite policy and writing files atomically.
+ *
+ * @param {string} imagePath - Path to the source image used to derive target result filenames.
+ * @param {object} result - OCR result data to persist; used as the JSON payload and to build text output.
+ * @param {object} [options] - Optional settings.
+ * @param {string|string[]} [options.outputFormat=['json','txt']] - Desired output formats; accepts 'json' and/or 'txt'.
+ * @param {'skip'|'suffix'|'overwrite'} [options.overwrite='skip'] - Overwrite policy: 'skip' (avoid existing targets), 'suffix' (prefer suffixed non-existing target, otherwise overwrite canonical), or 'overwrite' (replace the canonical target).
+ * @param {string} [options.imageDir] - Root directory where result files will be saved; falls back to process.env.IMAGE_DIR if not provided.
+ * @returns {{files: {json?: string, txt?: string}}} Object containing the paths of the saved files keyed by format.
+ * @throws {Error} If IMAGE_DIR is not configured.
+ * @throws {Error} If IMAGE_DIR is not accessible (cannot be resolved).
+ */
 async function saveOCRResults(imagePath, result, options = {}) {
   const {
     outputFormat = ['json', 'txt'],
