@@ -13,11 +13,9 @@ async function writeFileAtomic(filePath, content) {
   await fs.mkdir(dir, { recursive: true });
 
   // Use a unique temp directory per write to avoid collisions across concurrent calls.
-const tmpBase = await fs.mkdtemp(path.join(dir, '.ocr-tmp-'));
-const tempPath = path.join(tmpBase, `${path.basename(filePath)}.tmp`);
-  await fs.mkdir(tmpBase, { recursive: true });
-
+  const tmpBase = await fs.mkdtemp(path.join(dir, '.ocr-tmp-'));
   const tempPath = path.join(tmpBase, `${path.basename(filePath)}.tmp`);
+
   const handle = await fs.open(tempPath, 'wx'); // exclusive create; fail if already exists
 
   try {
@@ -34,18 +32,18 @@ const tempPath = path.join(tmpBase, `${path.basename(filePath)}.tmp`);
   // Atomic replace into final location; best-effort cleanup on failure.
   try {
     await fs.rename(tempPath, filePath);
-} catch (error) {
-  if (error && error.code === 'EXDEV') {
-    try {
-      await fs.copyFile(tempPath, filePath);
-    } finally {
-      try { await fs.unlink(tempPath); } catch {}
+  } catch (error) {
+    if (error && error.code === 'EXDEV') {
+      try {
+        await fs.copyFile(tempPath, filePath);
+      } finally {
+        try { await fs.unlink(tempPath); } catch { }
+      }
+    } else {
+      try { await fs.unlink(tempPath); } catch { }
+      throw error;
     }
-  } else {
-    try { await fs.unlink(tempPath); } catch {}
-    throw error;
   }
-}
 
   // Best-effort cleanup of the unique temp directory.
   try {
