@@ -31,6 +31,42 @@ function getResultFileCandidates(imagePath) {
 }
 
 async function checkResultFiles(imagePath) {
+  // Security: Validate path is within IMAGE_DIR before probing filesystem
+  const imageDir = process.env.IMAGE_DIR;
+  if (imageDir) {
+    const { resolveImagePath } = require('../utils/path-utils');
+    const resolved = await resolveImagePath(imagePath, imageDir);
+    if (!resolved) {
+      return { json: null, txt: null };
+    }
+    // Use resolved path for candidate generation
+    const { json: jsonCandidates, txt: txtCandidates } = getResultFileCandidates(resolved);
+    const results = { json: null, txt: null };
+
+    for (const candidate of jsonCandidates) {
+      try {
+        await fs.access(candidate);
+        results.json = candidate;
+        break;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    for (const candidate of txtCandidates) {
+      try {
+        await fs.access(candidate);
+        results.txt = candidate;
+        break;
+      } catch {
+        /* ignore */
+      }
+    }
+
+    return results;
+  }
+  
+  // Fallback if IMAGE_DIR not set (for backward compatibility)
   const { json: jsonCandidates, txt: txtCandidates } = getResultFileCandidates(imagePath);
   const results = { json: null, txt: null };
 

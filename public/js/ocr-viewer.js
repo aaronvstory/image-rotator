@@ -379,6 +379,7 @@ Hair Color: ${data.hairColor || 'N/A'}
 
   populateJsonView() {
     const editor = document.getElementById('ocrJsonEditor');
+    if (!editor) return; // Guard against missing element
     editor.value = JSON.stringify(this.currentData, null, 2);
   }
 

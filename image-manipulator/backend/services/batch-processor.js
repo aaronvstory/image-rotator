@@ -172,7 +172,7 @@ class BatchProcessor {
       });
     } catch (error) {
       this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.FAILED, {
-        error: error.message
+        error: (error && error.message) ? error.message : String(error)
       });
 
       const allowedRetries = options?.retryCount ?? 0;

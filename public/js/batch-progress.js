@@ -56,6 +56,16 @@ export default class BatchProgress {
         }
       });
 
+      // Fallback for servers that emit default 'message' events
+      this.eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this._handleUpdate(data);
+        } catch (error) {
+          console.error('Error parsing SSE message:', error);
+        }
+      };
+
       this.eventSource.onerror = (error) => {
         console.error('SSE connection error:', error);
         this._safeError('Connection interrupted. Falling back to polling…');

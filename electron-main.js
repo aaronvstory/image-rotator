@@ -35,6 +35,12 @@ function createWindow() {
       }
     }).on('error', () => setTimeout(waitForServer, 250));
   })();
+
+  // Stop server when window is closed (prevents orphan processes on macOS)
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    stopServer();
+  });
 }
 
 function startServer() {
