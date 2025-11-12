@@ -2,7 +2,7 @@
  * Batch Progress Client - SSE client for real-time batch progress tracking
  */
 
-export default class BatchProgress {
+class BatchProgress {
   constructor(fetchImpl = window.fetch.bind(window)) {
     this.eventSource = null;
     this.jobId = null;
@@ -323,6 +323,8 @@ export default class BatchProgress {
     }
   }
 }
+
+window.BatchProgress = BatchProgress;
 
 
 

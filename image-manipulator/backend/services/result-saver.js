@@ -1,5 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
 const {
   JSON_SUFFIXES,
   TXT_SUFFIXES
@@ -9,18 +11,42 @@ const { validateOCRPath } = require('../utils/path-utils');
 async function writeFileAtomic(filePath, content) {
   const dir = path.dirname(filePath);
   await fs.mkdir(dir, { recursive: true });
-  const tempPath = `${filePath}.tmp`;
-  await fs.writeFile(tempPath, content, 'utf8');
+
+  // Use a unique temp directory per write to avoid collisions across concurrent calls.
+  const tmpBase = path.join(os.tmpdir(), `ocr-${crypto.randomUUID()}`);
+  await fs.mkdir(tmpBase, { recursive: true });
+
+  const tempPath = path.join(tmpBase, `${path.basename(filePath)}.tmp`);
+  const handle = await fs.open(tempPath, 'wx'); // exclusive create; fail if already exists
+
+  try {
+    const payload = (typeof content === 'string')
+      ? content
+      : JSON.stringify(content);
+
+    await handle.writeFile(payload, 'utf8');
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+
+  // Atomic replace into final location; best-effort cleanup on failure.
   try {
     await fs.rename(tempPath, filePath);
   } catch (error) {
-    if (error.code === 'EXDEV') {
-      await fs.copyFile(tempPath, filePath);
+    try {
       await fs.unlink(tempPath);
-    } else {
-      await fs.unlink(tempPath).catch(() => { });
-      throw error;
+    } catch {
+      // ignore secondary cleanup errors
     }
+    throw error;
+  }
+
+  // Best-effort cleanup of the unique temp directory.
+  try {
+    await fs.rmdir(tmpBase);
+  } catch {
+    // ignore; non-fatal
   }
 }
 

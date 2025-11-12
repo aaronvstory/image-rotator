@@ -1,18 +1,21 @@
-// BatchController.js - Module for batch processing controls
-import BatchSelection from '../batch-selection.js';
-import BatchModal from '../batch-modal.js';
-import BatchProgress from '../batch-progress.js';
+// BatchController.js - Batch processing controls (classic script variant)
+(function () {
+    function getStableSelectionId(image) {
+        if (!image || typeof image !== 'object') return null;
+        return image.fullPath || image.relativePath || image.path || image.id || null;
+    }
 
-export default class BatchController {
-    constructor(imageManipulator) {
-        this.imageManipulator = imageManipulator;
-        this.batchSelection = new BatchSelection();
-        this.batchModal = new BatchModal(this.imageManipulator);
-        this.batchProgressClient = new BatchProgress();
+    function BatchController(imageManipulator) {
+        this.imageManipulator = imageManipulator || null;
+        this.batchSelection = window.BatchSelection ? new window.BatchSelection() : null;
+        this.batchModal = window.BatchModal && this.imageManipulator
+            ? new window.BatchModal(this.imageManipulator)
+            : null;
+        this.batchProgressClient = window.BatchProgress ? new window.BatchProgress() : null;
         this._batchStartInFlight = false;
     }
 
-    init() {
+    BatchController.prototype.init = function () {
         if (!this.batchSelection) return;
 
         this.batchSelection.onChange(this.updateBatchUI.bind(this));
@@ -30,7 +33,7 @@ export default class BatchController {
                 }
                 const visible = this.imageManipulator.getVisibleImages();
                 const ids = visible
-                    .map(img => img.fullPath || img.relativePath || img.id)
+                    .map(getStableSelectionId)
                     .filter(Boolean);
                 this.batchSelection.selectMany(ids);
             });
@@ -45,19 +48,24 @@ export default class BatchController {
         if (startBatchBtn) {
             startBatchBtn.addEventListener('click', () => this.startBatchOCR());
         }
-    }
+    };
 
-    updateAvailableImages(images) {
+    BatchController.prototype.updateAvailableImages = function (images) {
+        if (!this.batchSelection) return;
         this.batchSelection.setAvailableImages(
-            images.map(img => img.fullPath || img.relativePath || img.id).filter(Boolean)
+            (Array.isArray(images) ? images : [])
+                .map(getStableSelectionId)
+                .filter(Boolean)
         );
-    }
+    };
 
     /**
      * Update the batch UI elements (selection count, checkboxes).
      * Mirrors original ImageManipulator.updateBatchUI logic.
      */
-    updateBatchUI(selectionInfo) {
+    BatchController.prototype.updateBatchUI = function (selectionInfo) {
+        if (!this.batchSelection) return;
+
         const info = selectionInfo || {
             selectedIds: this.batchSelection.getSelectedIds(),
             count: this.batchSelection.getSelectedCount(),
@@ -76,31 +84,41 @@ export default class BatchController {
             startBtn.disabled = count === 0;
         }
 
-        this.imageManipulator.images.forEach(image => {
-            const selectionId = image.fullPath || image.relativePath || image.id;
+        const images = (this.imageManipulator && Array.isArray(this.imageManipulator.images))
+            ? this.imageManipulator.images
+            : [];
+
+        images.forEach(image => {
+            const selectionId = getStableSelectionId(image);
+            if (!selectionId) return;
             const encodedSelectionId = encodeURIComponent(selectionId);
             const checkbox = document.querySelector(`input[data-image-id="${encodedSelectionId}"]`);
             if (checkbox) {
                 checkbox.checked = this.batchSelection.isSelected(selectionId);
             }
         });
-    }
+    };
 
-    processImageCard(card, image) {
+    BatchController.prototype.processImageCard = function (card) {
+        if (!card || !this.batchSelection) return;
         const checkbox = card.querySelector('.batch-checkbox');
         if (checkbox) {
             checkbox.addEventListener('change', () => {
                 const decodedId = decodeURIComponent(checkbox.dataset.imageId || '');
-                this.batchSelection.toggleImage(decodedId);
+                if (decodedId) {
+                    this.batchSelection.toggleImage(decodedId);
+                }
             });
         }
-    }
+    };
 
-    async startBatchOCR() {
+    BatchController.prototype.startBatchOCR = async function () {
         if (this._batchStartInFlight) return;
 
         if (!this.batchSelection || !this.batchModal || !this.batchProgressClient) {
-            this.imageManipulator.showError('Batch processing modules not initialized yet. Please refresh and try again.');
+            if (this.imageManipulator && typeof this.imageManipulator.showError === 'function') {
+                this.imageManipulator.showError('Batch processing modules not initialized yet. Please refresh and try again.');
+            }
             return;
         }
 
@@ -116,10 +134,15 @@ export default class BatchController {
             }
         };
 
-        const selectedItems = this.batchSelection.getSelectedItems(this.imageManipulator.images);
+        const sourceImages = (this.imageManipulator && Array.isArray(this.imageManipulator.images))
+            ? this.imageManipulator.images
+            : [];
+        const selectedItems = this.batchSelection.getSelectedItems(sourceImages);
 
         if (selectedItems.length === 0) {
-            this.imageManipulator.showError('No images selected');
+            if (this.imageManipulator && typeof this.imageManipulator.showError === 'function') {
+                this.imageManipulator.showError('No images selected');
+            }
             resetState();
             return;
         }
@@ -133,7 +156,7 @@ export default class BatchController {
                 body: JSON.stringify({
                     items: selectedItems
                         .map(i => {
-                            const p = i.fullPath || i.relativePath || i.path || i.id;
+                            const p = getStableSelectionId(i);
                             return p ? { path: String(p), filename: i.filename || i.name || null } : null;
                         })
                         .filter(Boolean),
@@ -149,14 +172,16 @@ export default class BatchController {
                 try {
                     const errorPayload = await response.json();
                     serverMessage = errorPayload?.error || JSON.stringify(errorPayload);
-                } catch (parseError) {
+                } catch {
                     try {
                         serverMessage = await response.text();
                     } catch { }
                 }
                 const message = `Failed to start batch OCR (HTTP ${response.status}): ${serverMessage || response.statusText || 'Unknown error'}`;
                 console.error(message);
-                this.imageManipulator.showError(message);
+                if (this.imageManipulator && typeof this.imageManipulator.showError === 'function') {
+                    this.imageManipulator.showError(message);
+                }
                 return;
             }
 
@@ -164,17 +189,19 @@ export default class BatchController {
 
             if (data.success) {
                 this.batchModal.open(data.jobId, this.batchProgressClient);
-            } else {
+            } else if (this.imageManipulator && typeof this.imageManipulator.showError === 'function') {
                 this.imageManipulator.showError('Failed to start batch OCR: ' + data.error);
             }
         } catch (error) {
             console.error('Error starting batch OCR:', error);
-            this.imageManipulator.showError('Failed to start batch OCR');
+            if (this.imageManipulator && typeof this.imageManipulator.showError === 'function') {
+                this.imageManipulator.showError('Failed to start batch OCR');
+            }
         } finally {
             resetState();
         }
-    }
-}
+    };
 
-// End of BatchController.js
+    window.BatchController = BatchController;
+})();
 

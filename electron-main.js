@@ -79,6 +79,8 @@ function startServer() {
     cwd: path.dirname(serverEntry),
     env: {
       ...process.env,
+      // Ensure Electron child runs server.js as a plain Node process
+      ELECTRON_RUN_AS_NODE: '1',
       PORT: String(SERVER_PORT),
       HOST: SERVER_HOST,
       SERVER_PORT: String(SERVER_PORT),
@@ -93,8 +95,8 @@ function startServer() {
     showServerError(`http://${WINDOW_HOST}:${SERVER_PORT}`, err);
   });
 
-  serverProcess.on('exit', (code) => {
-    console.log(`Server process exited with code ${code}`);
+  serverProcess.on('exit', (code, signal) => {
+    console.log(`Server process exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`);
     if (code !== 0) {
       showServerError(`http://${WINDOW_HOST}:${SERVER_PORT}`);
     }

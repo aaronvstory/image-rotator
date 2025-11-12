@@ -1,9 +1,10 @@
 /**
  * Batch Selection Manager - Handles image selection for batch processing
  * Pure vanilla JavaScript, converted from React patterns
+ * Exposed as window.BatchSelection for classic script usage.
  */
 
-export default class BatchSelection {
+class BatchSelection {
   constructor() {
     this.selectedIds = new Set();
     this.allImageIds = [];
@@ -156,24 +157,27 @@ export default class BatchSelection {
    */
   getSelectedItems(images) {
     const set = this.selectedIds;
-    return images
+    const list = Array.isArray(images) ? images : [];
+    return list
       .filter((img) => {
         if (!img) return false;
-        if (img.fullPath && set.has(img.fullPath)) return true;
-        if (img.relativePath && set.has(img.relativePath)) return true;
-        return Boolean(img.id && set.has(img.id));
+        const stableId =
+          img.fullPath || img.relativePath || img.path || img.id;
+        return Boolean(stableId && set.has(stableId));
       })
       .map((img) => {
-        const stableId = img.fullPath || img.relativePath || img.id;
-        // Use only actual file paths (fullPath or relativePath), not id
-        const filePath = img.fullPath || img.relativePath;
+        const stableId =
+          img.fullPath || img.relativePath || img.path || img.id;
+        const filePath = img.fullPath || img.relativePath || img.path;
         return {
           id: stableId,
           path: filePath,
-          filename: img.filename
+          filename: img.filename || img.name || null
         };
       })
-      .filter(item => item.path); // Remove items with no valid file path
+      .filter((item) => Boolean(item.path)); // Remove items with no valid file path
   }
 }
+
+window.BatchSelection = BatchSelection;
 

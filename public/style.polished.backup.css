@@ -179,6 +179,7 @@ body {
     background: #374151;
     outline: none;
     -webkit-appearance: none;
+    -moz-appearance: none;
     appearance: none;
     cursor: pointer;
 }
@@ -195,6 +196,8 @@ body {
 }
 
 .grid-slider::-moz-range-thumb {
+    -moz-appearance: none;
+    appearance: none;
     width: 18px;
     height: 18px;
     border-radius: 50%;
@@ -247,6 +250,7 @@ body {
         #374151 100%);
     outline: none;
     -webkit-appearance: none;
+    -moz-appearance: none;
     appearance: none;
     cursor: pointer;
     transition: background 0.3s ease;
@@ -264,6 +268,8 @@ body {
 }
 
 .hover-slider::-moz-range-thumb {
+    -moz-appearance: none;
+    appearance: none;
     width: 18px;
     height: 18px;
     border-radius: 50%;
@@ -631,8 +637,8 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.55);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
   z-index: 10000;
 }
 .ocr-inspector {

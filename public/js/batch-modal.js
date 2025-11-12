@@ -2,7 +2,7 @@
  * Batch Modal - Display batch progress and results
  */
 
-export default class BatchModal {
+class BatchModal {
   constructor(imageManipulator) {
     this.modal = null;
     this.isOpen = false;
@@ -478,6 +478,8 @@ export default class BatchModal {
         onError: (e) => this.handleError(e)
       });
     }
+
+    window.BatchModal = BatchModal;
   }
 }
 

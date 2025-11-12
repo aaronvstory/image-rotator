@@ -34,6 +34,7 @@ router.post('/start', async (req, res) => {
       return res.status(400).json({ success: false, error: 'IMAGE_DIR is not accessible' });
     }
 
+
     const apiKeyRaw = process.env.OPENROUTER_API_KEY ?? process.env.OCR_API_KEY;
     const apiKey = typeof apiKeyRaw === 'string' ? apiKeyRaw.trim() : '';
     if (!apiKey) {
@@ -46,11 +47,27 @@ router.post('/start', async (req, res) => {
 
 
     const resolvedImageRoot = path.resolve(imageRoot);
+
+    // If IMAGE_ROOT_DIR is set, ensure the resolvedImageRoot is inside it.
+    const allowedRoot = process.env.IMAGE_ROOT_DIR || null;
+    if (allowedRoot) {
+      const ok = await isPathInside(resolvedImageRoot, allowedRoot);
+      if (!ok) {
+        return res.status(400).json({
+          success: false,
+          error: 'imageDir outside allowed root'
+        });
+      }
+    }
+
     const sanitized = [];
     for (const item of items) {
       const abs = path.resolve(String(item.path || ''));
       if (!(await isPathInside(abs, resolvedImageRoot))) {
-        return res.status(400).json({ success: false, error: `Item path is outside image root: ${item.path}` });
+        return res.status(400).json({
+          success: false,
+          error: `Item path is outside image root: ${item.path}`
+        });
       }
       sanitized.push({
         id: item.id,

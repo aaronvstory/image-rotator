@@ -15,14 +15,21 @@ class ImageManipulator {
         const storedHoverDelay = parseInt(localStorage.getItem('hoverDelayMs'), 10);
         this.hoverDelayMs = Number.isFinite(storedHoverDelay) ? storedHoverDelay : 2000;
         this.currentFilter = 'all'; // all, processed, unprocessed
-        this.pager = (window.Pager ? new window.Pager(Number(localStorage.getItem('pageSize')) || 150) : null);
 
-        // OCR viewer
+        // Pager (defensive: only if loaded)
+        this.pager = (window.Pager
+            ? new window.Pager(Number(localStorage.getItem('pageSize')) || 150)
+            : null);
+
+        // OCR viewer (if present)
         this.ocrViewer = (window.OCRViewer ? new window.OCRViewer() : null);
         window.ocrViewer = this.ocrViewer;
 
-        // Batch controller
-        this.batchController = (window.BatchController ? new window.BatchController(this) : null);
+        // Batch controller (defensive: only if loaded)
+        this.batchController = (window.BatchController
+            ? new window.BatchController(this)
+            : null);
+
         this.init();
     }
 
@@ -32,7 +39,8 @@ class ImageManipulator {
             this.loadCurrentDirectory();
             this.setupGridControls();
             this.setupPaginationControls();
-            if (this.batchController) {
+
+            if (this.batchController && typeof this.batchController.init === 'function') {
                 this.batchController.init();
             }
 
