@@ -214,7 +214,7 @@ class OCRPanel {
         data.progress ||
         ((data.processedImages + data.skippedImages + data.failedImages) /
           data.totalImages) *
-          100;
+        100;
       this.updateProgressBar(progress);
     }
     this.updateStats(data);
@@ -329,8 +329,7 @@ class OCRPanel {
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         alert(
-          `Failed to reprocess image: ${
-            payload.message || payload.error || response.status
+          `Failed to reprocess image: ${payload.message || payload.error || response.status
           }`
         );
         return;
@@ -375,9 +374,8 @@ class OCRPanel {
       else if (result.status === "error") statusIcon = "✗";
       item.innerHTML = `
                 <span class="result-status">${statusIcon}</span>
-                <span class="result-image link" title="View details">${
-                  result.image
-                }</span>
+                <span class="result-image link" title="View details">${result.image
+        }</span>
                 <span class="result-message">${result.message || ""}</span>
             `;
       const imgEl = item.querySelector(".result-image");

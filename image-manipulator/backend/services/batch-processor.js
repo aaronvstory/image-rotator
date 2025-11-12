@@ -1,3 +1,4 @@
+const path = require('path');
 const { ITEM_STATUS, JOB_STATUS } = require('./batch-manager');
 const { shouldSkipImage } = require('./skip-detector');
 const { saveOCRResults } = require('./result-saver');
@@ -109,14 +110,9 @@ class BatchProcessor {
         return;
       }
 
-      // Validate baseDir - only use server-configured IMAGE_DIR
-      // Reject any attempt to override via options to prevent directory escape
-      const baseDir = process.env.IMAGE_DIR;
+      const baseDir = options?.imageDir ? path.resolve(String(options.imageDir)) : null;
       if (!baseDir) {
         throw new Error('IMAGE_DIR is required to process OCR items');
-      }
-      if (options?.imageDir && path.resolve(options.imageDir) !== path.resolve(baseDir)) {
-        throw new Error('Cannot override IMAGE_DIR via request options');
       }
 
       // Resolve and validate path first (security critical)
@@ -125,13 +121,15 @@ class BatchProcessor {
         throw new Error('Refusing to process file outside IMAGE_DIR');
       }
 
+      const runtimeOptions = { ...options, imageDir: baseDir };
+
       if (this._isCancellationRequested(jobId)) {
         this._markCancelled(jobId, item.id);
         return;
       }
 
       // Run skip detection on validated path only
-      const skip = await shouldSkipImage(safePath, options);
+      const skip = await shouldSkipImage(safePath, runtimeOptions);
       if (skip) {
         this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.SKIPPED, {
           result: { skipped: true, reason: 'Already processed' }
@@ -143,7 +141,7 @@ class BatchProcessor {
         this._markCancelled(jobId, item.id);
         return;
       }
-      const ocrResult = await provider.processImage(safePath, options);
+      const ocrResult = await provider.processImage(safePath, runtimeOptions);
 
       if (this._isCancellationRequested(jobId)) {
         this._markCancelled(jobId, item.id);
@@ -162,7 +160,7 @@ class BatchProcessor {
         throw new Error(ocrResult.error || 'OCR processing failed');
       }
 
-      const saveResult = await saveOCRResults(safePath, ocrResult.data, options);
+      const saveResult = await saveOCRResults(safePath, ocrResult.data, runtimeOptions);
 
       if (this._isCancellationRequested(jobId)) {
         this._markCancelled(jobId, item.id);

@@ -17,7 +17,7 @@ class OCRService {
    */
   async hasOCRResults(imagePath) {
     try {
-      const files = await checkResultFiles(imagePath);
+      const files = await checkResultFiles(imagePath, process.env.IMAGE_DIR);
       return Boolean(files.json || files.txt);
     } catch {
       return false;
@@ -29,7 +29,7 @@ class OCRService {
    */
   async loadOCRResults(imagePath) {
     try {
-      const files = await checkResultFiles(imagePath);
+      const files = await checkResultFiles(imagePath, process.env.IMAGE_DIR);
       if (!files.json) {
         return null;
       }

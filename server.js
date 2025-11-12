@@ -34,7 +34,7 @@ const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.tiff',
 function isImageFile(filename) { return SUPPORTED_EXTENSIONS.includes(path.extname(filename).toLowerCase()); }
 
 async function hasOCRResults(imagePath) {
-  const files = await checkResultFiles(imagePath);
+  const files = await checkResultFiles(imagePath, IMAGE_DIR);
   return Boolean(files.json || files.txt);
 }
 
@@ -216,7 +216,7 @@ app.get('/api/ocr-results', async (req, res) => {
       return res.status(403).json({ error: 'Image not within configured directory' });
     }
 
-    const existing = await checkResultFiles(resolvedImagePath);
+    const existing = await checkResultFiles(resolvedImagePath, IMAGE_DIR);
     const targetPath = isRaw ? existing.txt : existing.json;
     if (!targetPath) {
       return res.status(404).json({ error: 'OCR results not found' });
@@ -251,7 +251,7 @@ app.post('/api/ocr-results/save', async (req, res) => {
     }
 
     // Use existing file if present; otherwise choose a single canonical target
-    const existing = await checkResultFiles(resolvedImagePath);
+    const existing = await checkResultFiles(resolvedImagePath, IMAGE_DIR);
     let target;
     if (mode === 'json') {
       target = existing.json || listCandidatePaths(resolvedImagePath, 'json')[0];
@@ -301,7 +301,7 @@ app.get('/api/ocr/has/:imagePath(*)', async (req, res) => {
     return res.status(403).json({ success: false, error: 'Image not within configured directory' });
   }
   try {
-    const files = await checkResultFiles(requestedPath);
+    const files = await checkResultFiles(requestedPath, IMAGE_DIR);
     res.json({ success: true, has: Boolean(files.json || files.txt) });
   } catch (error) {
     console.error('Error checking OCR files', error);

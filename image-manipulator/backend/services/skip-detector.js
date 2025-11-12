@@ -30,12 +30,12 @@ function getResultFileCandidates(imagePath) {
   };
 }
 
-async function checkResultFiles(imagePath) {
+async function checkResultFiles(imagePath, imageDir) {
   // Security: Validate path is within IMAGE_DIR before probing filesystem
-  const imageDir = process.env.IMAGE_DIR;
-  if (imageDir) {
+  const root = imageDir || process.env.IMAGE_DIR;
+  if (root) {
     const { resolveImagePath } = require('../utils/path-utils');
-    const resolved = await resolveImagePath(imagePath, imageDir);
+    const resolved = await resolveImagePath(imagePath, root);
     if (!resolved) {
       return { json: null, txt: null };
     }
@@ -75,7 +75,7 @@ async function shouldSkipImage(imagePath, options = {}) {
   if (overwriteMode === 'overwrite') return false;
   if (overwriteMode === 'suffix') return false;
 
-  const existing = await checkResultFiles(imagePath);
+  const existing = await checkResultFiles(imagePath, options.imageDir);
   return Boolean(existing.json || existing.txt);
 }
 
