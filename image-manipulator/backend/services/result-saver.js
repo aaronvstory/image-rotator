@@ -18,7 +18,7 @@ async function writeFileAtomic(filePath, content) {
       await fs.copyFile(tempPath, filePath);
       await fs.unlink(tempPath);
     } else {
-      await fs.unlink(tempPath).catch(() => {});
+      await fs.unlink(tempPath).catch(() => { });
       throw error;
     }
   }
