@@ -1,6 +1,6 @@
 const ENHANCED_HOOK_KEY = Symbol('enhancedHooksInstalled');
 
-const getStableId = (img = {}) => img.fullPath || img.relativePath || img.id || img.path;
+const getStableId = (img = {}) => img.fullPath || img.relativePath || img.path || img.id;
 
 const resolveImages = (ctx) => {
   if (typeof ctx?.getImages === 'function') {
