@@ -140,7 +140,13 @@ class BatchManager extends EventEmitter {
       status: JOB_STATUS.QUEUED,
       options: mergedOptions,
       controls: {
-        paused: false,
+```javascript
+  deleteJob(jobId) {
+    this._clearCleanupTimer(jobId);
+    const existed = this.jobs.delete(jobId);
+    if (existed) this.emit('jobDeleted', { jobId });
+    return existed;
+  }
         cancelRequested: false,
         chunkSize: mergedOptions.chunkSize
       },
