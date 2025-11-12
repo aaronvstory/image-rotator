@@ -764,7 +764,11 @@ app.get("/api/ocr/progress/:jobId", (req, res) => {
   }
 
   // Set up SSE
-  res.writeHead(200, {
+res.writeHead(200, {
+  "Content-Type": "text/event-stream",
+  "Cache-Control": "no-cache",
+  Connection: "keep-alive"
+});
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
