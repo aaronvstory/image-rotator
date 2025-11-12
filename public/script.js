@@ -358,6 +358,13 @@ class ImageManipulator {
         if (textSpan) {
             textSpan.textContent = message;
         }
+
+        // Always hide before showing to prevent stacking of multiple errors
+        errorEl.classList.add('hidden');
+
+        // Force reflow to restart animation
+        void errorEl.offsetWidth;
+
         errorEl.classList.remove('hidden');
 
         if (this._errorHideTimer) {
@@ -912,7 +919,7 @@ function escapeHtml(text) {
         '"': '&quot;',
         "'": '&#039;'
     };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    return text.replace(/[&<>"']/g, function (m) { return map[m]; });
 }
 
 // Initialize the app

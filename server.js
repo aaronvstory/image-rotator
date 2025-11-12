@@ -21,6 +21,7 @@ const { isPathInside, resolveImagePath, validateOCRPath } = require('./image-man
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
+// Bind to localhost by default for security. Set HOST='0.0.0.0' in .env to expose externally.
 const HOST = process.env.HOST || 'localhost';
 
 app.use(express.static('public'));
@@ -73,8 +74,8 @@ async function scanImagesRecursively(dirPath, opts = {}) {
   return acc;
 }
 
-async function generateThumbnail(p) { return sharp(p).resize(150,150,{fit:'cover',position:'center'}).jpeg({quality:85}).toBuffer(); }
-async function generatePreview(p) { return sharp(p).resize(1200,900,{fit:'inside',withoutEnlargement:false}).jpeg({quality:95}).toBuffer(); }
+async function generateThumbnail(p) { return sharp(p).resize(150, 150, { fit: 'cover', position: 'center' }).jpeg({ quality: 85 }).toBuffer(); }
+async function generatePreview(p) { return sharp(p).resize(1200, 900, { fit: 'inside', withoutEnlargement: false }).jpeg({ quality: 95 }).toBuffer(); }
 
 async function rotateImage(p, deg) {
   const max = 3; let last;
@@ -114,9 +115,9 @@ function listCandidatePaths(imagePath, type) {
   return type === 'txt' ? candidates.txt : candidates.json;
 }
 
-app.get('/api/directory', (req,res)=> res.json({success:true,directory:IMAGE_DIR}));
+app.get('/api/directory', (req, res) => res.json({ success: true, directory: IMAGE_DIR }));
 
-app.post('/api/directory', async (req,res)=>{ const {directory}=req.body||{}; if(!directory) return res.status(400).json({success:false,error:'Directory path is required'}); try{ await fs.access(directory); const s=await fs.stat(directory); if(!s.isDirectory()) return res.status(400).json({success:false,error:'Path is not a directory'}); IMAGE_DIR=directory; app.set('IMAGE_DIR', IMAGE_DIR); res.json({success:true,directory:IMAGE_DIR}); } catch { return res.status(400).json({success:false,error:'Directory does not exist or is not accessible'}); }});
+app.post('/api/directory', async (req, res) => { const { directory } = req.body || {}; if (!directory) return res.status(400).json({ success: false, error: 'Directory path is required' }); try { await fs.access(directory); const s = await fs.stat(directory); if (!s.isDirectory()) return res.status(400).json({ success: false, error: 'Path is not a directory' }); IMAGE_DIR = directory; app.set('IMAGE_DIR', IMAGE_DIR); res.json({ success: true, directory: IMAGE_DIR }); } catch { return res.status(400).json({ success: false, error: 'Directory does not exist or is not accessible' }); } });
 
 app.get('/api/images', async (req, res) => {
   if (!IMAGE_DIR) {

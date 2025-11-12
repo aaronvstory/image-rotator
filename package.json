@@ -8,12 +8,12 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-  "start": "electron .",
-  "server": "node server.js",
-  "dev": "cross-env NODE_ENV=development electron .",
-  "build": "electron-builder",
-  "test": "node scripts/test-watchdog.mjs",
-  "test:ci": "node scripts/test-watchdog.mjs",
+    "start": "electron .",
+    "server": "node server.js",
+    "dev": "cross-env NODE_ENV=development electron .",
+    "build": "electron-builder",
+    "test": "node scripts/test-watchdog.mjs",
+    "test:ci": "node scripts/test-watchdog.mjs",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
@@ -32,8 +32,8 @@
     "express": "^4.18.2",
     "fs": "^0.0.1-security",
     "multer": "^1.4.5-lts.1",
-  "node-fetch": "^2.7.0",
-  "path": "^0.12.7",
+    "node-fetch": "^2.7.0",
+    "path": "^0.12.7",
     "sharp": "^0.34.2"
   },
   "devDependencies": {
@@ -55,8 +55,10 @@
       "server.js",
       "server-ocr.js",
       "public/**/*",
+      "image-manipulator/backend/**/*",
       "node_modules/**/*",
-      "package.json"
+      "package.json",
+      ".env.example"
     ],
     "win": {
       "target": [
@@ -81,5 +83,3 @@
     }
   }
 }
-
-
