@@ -10,7 +10,7 @@
   "scripts": {
     "start": "electron .",
     "server": "node server.js",
-    "dev": "NODE_ENV=development electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
@@ -31,10 +31,13 @@
     "fs": "^0.0.1-security",
     "multer": "^1.4.5-lts.1",
     "node-fetch": "^2.7.0",
+    "openai": "^6.8.1",
     "path": "^0.12.7",
-    "sharp": "^0.34.2"
+    "sharp": "^0.34.2",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "electron": "^39.1.0",
     "electron-builder": "^26.0.12",
     "nodemon": "^3.0.2"
@@ -55,15 +58,24 @@
       "package.json"
     ],
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "public/favicon.ico"
     },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.productivity"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Graphics"
     }
   }
