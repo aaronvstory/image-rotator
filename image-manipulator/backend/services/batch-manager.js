@@ -52,6 +52,7 @@ class BatchManager extends EventEmitter {
     }
 
     // Always generate server-side job IDs; ignore any caller-supplied value
+    // Use full cryptographically random UUID to prevent enumeration
     const jobId = `batch_${uuidv4()}`;
     const now = new Date().toISOString();
     const mergedOptions = { ...this.defaultOptions, ...options };

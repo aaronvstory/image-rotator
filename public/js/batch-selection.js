@@ -115,7 +115,7 @@ export default class BatchSelection {
    */
   isAllSelected() {
     return this.allImageIds.length > 0 &&
-           this.selectedIds.size === this.allImageIds.length;
+      this.selectedIds.size === this.allImageIds.length;
   }
 
   /**
@@ -165,12 +165,15 @@ export default class BatchSelection {
       })
       .map((img) => {
         const stableId = img.fullPath || img.relativePath || img.id;
+        // Use only actual file paths (fullPath or relativePath), not id
+        const filePath = img.fullPath || img.relativePath;
         return {
           id: stableId,
-          path: img.fullPath || stableId,
+          path: filePath,
           filename: img.filename
         };
-      });
+      })
+      .filter(item => item.path); // Remove items with no valid file path
   }
 }
 

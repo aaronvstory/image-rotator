@@ -109,7 +109,25 @@ class BatchProcessor {
         return;
       }
 
-      const skip = await shouldSkipImage(item.path, options);
+      // Validate baseDir before any path operations
+      const baseDir = options?.imageDir || process.env.IMAGE_DIR;
+      if (!baseDir) {
+        throw new Error('IMAGE_DIR (or options.imageDir) is required to process OCR items');
+      }
+
+      // Resolve and validate path first (security critical)
+      const safePath = await resolveImagePath(item.path, baseDir);
+      if (!safePath) {
+        throw new Error('Refusing to process file outside IMAGE_DIR');
+      }
+
+      if (this._isCancellationRequested(jobId)) {
+        this._markCancelled(jobId, item.id);
+        return;
+      }
+
+      // Run skip detection on validated path only
+      const skip = await shouldSkipImage(safePath, options);
       if (skip) {
         this.batchManager.updateItemStatus(jobId, item.id, ITEM_STATUS.SKIPPED, {
           result: { skipped: true, reason: 'Already processed' }
@@ -120,15 +138,6 @@ class BatchProcessor {
       if (this._isCancellationRequested(jobId)) {
         this._markCancelled(jobId, item.id);
         return;
-      }
-
-      const baseDir = options?.imageDir || process.env.IMAGE_DIR;
-      if (!baseDir) {
-        throw new Error('IMAGE_DIR (or options.imageDir) is required to process OCR items');
-      }
-      const safePath = await resolveImagePath(item.path, baseDir);
-      if (!safePath) {
-        throw new Error('Refusing to process file outside IMAGE_DIR');
       }
       const ocrResult = await provider.processImage(safePath, options);
 
