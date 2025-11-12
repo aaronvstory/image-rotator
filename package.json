@@ -8,11 +8,12 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "start": "electron .",
-    "server": "node server.js",
-    "dev": "cross-env NODE_ENV=development electron .",
-    "build": "electron-builder",
-    "test": "node tests/run-tests.js",
+  "start": "electron .",
+  "server": "node server.js",
+  "dev": "cross-env NODE_ENV=development electron .",
+  "build": "electron-builder",
+  "test": "node scripts/test-watchdog.mjs",
+  "test:ci": "node scripts/test-watchdog.mjs",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"

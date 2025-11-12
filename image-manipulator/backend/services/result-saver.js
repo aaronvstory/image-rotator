@@ -77,7 +77,7 @@ async function pathExists(candidate) {
 }
 
 async function validateTargets(paths = [], imageDir, suffixes) {
-  if (!imageDir) return []; 
+  if (!imageDir) return [];
   const valid = [];
   for (const candidate of paths) {
     const check = await validateOCRPath(candidate, imageDir, suffixes);
@@ -109,13 +109,21 @@ async function saveOCRResults(imagePath, result, options = {}) {
     const validated = await validateTargets(paths, imageDir, suffixes);
     if (!validated.length) return [];
 
+    // In 'suffix' mode, prefer the first non-existing validated candidate.
+    // If all exist, fall back to the last one so caller explicitly overwrites that canonical suffix.
     if (overwriteMode === 'suffix') {
+      for (const candidate of validated) {
+        const exists = await pathExists(candidate);
+        if (!exists) return [candidate];
+      }
       return [validated[validated.length - 1]];
     }
+
     if (overwriteMode === 'overwrite') {
       return [validated[0]];
     }
 
+    // 'skip' mode: write only when a new target is available
     for (const candidate of validated) {
       const exists = await pathExists(candidate);
       if (!exists) {
