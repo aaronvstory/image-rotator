@@ -29,17 +29,20 @@ class OCRViewer {
 
   bindEvents() {
     // Close button
-    document.getElementById('ocrViewerClose').addEventListener('click', () => {
+    const closeBtn = document.getElementById('ocrViewerClose');
+    if (closeBtn) closeBtn.addEventListener('click', () => {
       this.close();
     });
 
     // Cancel button
-    document.getElementById('ocrCancelBtn').addEventListener('click', () => {
+    const cancelBtn = document.getElementById('ocrCancelBtn');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => {
       this.close();
     });
 
     // Save button
-    document.getElementById('ocrSaveBtn').addEventListener('click', () => {
+    const saveBtn = document.getElementById('ocrSaveBtn');
+    if (saveBtn) saveBtn.addEventListener('click', () => {
       this.saveChanges();
     });
 
@@ -52,11 +55,13 @@ class OCRViewer {
     });
 
     // Track changes
-    document.getElementById('ocrJsonEditor').addEventListener('input', () => {
+    const jsonEditor = document.getElementById('ocrJsonEditor');
+    if (jsonEditor) jsonEditor.addEventListener('input', () => {
       this.hasChanges = true;
     });
 
-    document.getElementById('ocrRawEditor').addEventListener('input', () => {
+    const rawEditor = document.getElementById('ocrRawEditor');
+    if (rawEditor) rawEditor.addEventListener('input', () => {
       this.hasChanges = true;
     });
 
@@ -87,7 +92,7 @@ class OCRViewer {
       this.currentData = await response.json();
 
       // Update filename display
-  const filename = imagePath.split(/[\\/]/).pop();
+      const filename = imagePath.split(/[\\/]/).pop();
       document.getElementById('ocrViewerFilename').textContent = filename;
 
       // Populate views

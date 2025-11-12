@@ -267,7 +267,7 @@ export default class BatchModal {
    * @private
    */
   handleUpdate(data) {
-  const { stats, items } = data;
+    const { stats, items } = data;
 
     // Update stats
     const totalEl = this._query('#batchTotal');
@@ -312,8 +312,8 @@ export default class BatchModal {
 
     // Update title
     const title = status === 'cancelled' ? 'Batch Cancelled' :
-                  stats.failed > 0 ? 'Batch Completed with Errors' :
-                  'Batch Completed Successfully';
+      stats.failed > 0 ? 'Batch Completed with Errors' :
+        'Batch Completed Successfully';
     const modalTitle = this._query('#batchModalTitle');
     if (modalTitle) modalTitle.textContent = title;
 
@@ -346,8 +346,9 @@ export default class BatchModal {
           this.imageManipulator.updateStatistics();
         }
       }
-    } catch {}
-    this._ensureReattachPillVisible(false);
+    } catch (error) {
+      console.error('Failed to sync grid model after batch completion:', error);
+    }
     this._ensureReattachPillVisible(!this.isComplete && !!this.currentJobId);
   }
 
@@ -451,8 +452,9 @@ export default class BatchModal {
     const pill = document.getElementById('batchReattachPill');
     if (!pill) return;
     pill.classList.toggle('hidden', !visible);
-    const handler = () => this._onReopenClick();
-    try { pill.removeEventListener('click', handler); } catch {}
+    if (!this._reattachHandler) this._reattachHandler = () => this._onReopenClick();
+    const handler = this._reattachHandler;
+    try { pill.removeEventListener('click', handler); } catch { }
     if (visible) {
       pill.addEventListener('click', handler);
     }
@@ -479,13 +481,13 @@ export default class BatchModal {
   }
 }
 
-BatchModal.calculateProgress = function(stats) {
+BatchModal.calculateProgress = function (stats) {
   if (!stats || !stats.total) return 0;
   const completed = (stats.completed || 0) + (stats.failed || 0) + (stats.skipped || 0);
   return Math.round((completed / stats.total) * 100);
 };
 
-BatchModal.formatTimeEstimate = function(itemsRemaining, avgTimePerItem) {
+BatchModal.formatTimeEstimate = function (itemsRemaining, avgTimePerItem) {
   if (!itemsRemaining) return 'Complete';
   if (!avgTimePerItem) return 'Calculating...';
 

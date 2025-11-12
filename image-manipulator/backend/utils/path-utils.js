@@ -82,8 +82,8 @@ async function validateOCRPath(fp, imageDir, validSuffixes = []) {
   }
   try {
     const rootReal = await fs.realpath(path.resolve(String(imageDir)));
-    const parentReal = await fs.realpath(path.resolve(path.dirname(fp))).catch(() => null);
-    const abs = parentReal ? path.join(parentReal, path.basename(fp)) : path.resolve(fp);
+    const parentReal = await fs.realpath(path.resolve(path.dirname(fp)));
+    const abs = path.join(parentReal, path.basename(fp));
     const inside = await isPathInside(abs, rootReal);
     if (!inside) {
       return { valid: false, error: 'Path must be within image directory' };

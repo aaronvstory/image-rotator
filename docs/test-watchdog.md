@@ -35,8 +35,11 @@ Recommended VS Code user settings (apply in your User Settings JSON)
 
 Notes
 
-- I can't modify your VS Code User Settings from within the repository because those files are user-specific and outside the workspace folder. Please paste the recommended settings into your User Settings (JSON) if you'd like the stable terminal setup.
+- VS Code User Settings are user-specific and located outside the workspace folder. To apply the recommended terminal configuration, paste the settings block into User Settings (JSON) via Command Palette → Preferences: Open User Settings (JSON).
 
-- To diagnose terminal hangs, follow the steps in the earlier message: reload with extensions disabled, kill all terminals, and run `npm test` to observe behaviour.
-
-If you'd like, I can now run `npm test` in the integrated terminal and share the output. If you prefer to watch via the VS Code developer tools, let me know and I'll start the run now.
+- To diagnose terminal hangs, perform the following steps:
+  1. Command Palette → Developer: Reload With Extensions Disabled
+  2. Command Palette → Terminal: Kill All Terminals
+  3. Command Palette → Developer: Reload Window
+  4. Run `npm test` in the integrated terminal to observe test execution behavior
+  5. Optionally, open VS Code Developer Tools (Help → Toggle Developer Tools) to monitor console output and terminal integration diagnostics during test runs

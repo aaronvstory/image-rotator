@@ -122,7 +122,11 @@ class BatchProcessor {
         return;
       }
 
-      const safePath = await resolveImagePath(item.path, options?.imageDir || process.env.IMAGE_DIR || '');
+      const baseDir = options?.imageDir || process.env.IMAGE_DIR;
+      if (!baseDir) {
+        throw new Error('IMAGE_DIR (or options.imageDir) is required to process OCR items');
+      }
+      const safePath = await resolveImagePath(item.path, baseDir);
       if (!safePath) {
         throw new Error('Refusing to process file outside IMAGE_DIR');
       }
