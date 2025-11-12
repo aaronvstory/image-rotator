@@ -941,10 +941,9 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, function (m) { return map[m]; });
 }
 
-// Initialize the app
-window.ImageManipulator = ImageManipulator;
+ // Initialize the app
 const imageManipulator = new ImageManipulator();
-window.imageManipulator = imageManipulator;
+window.appImageManipulator = imageManipulator;
 
 // Add keyboard shortcuts
 document.addEventListener('keydown', (e) => {
