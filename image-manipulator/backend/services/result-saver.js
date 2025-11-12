@@ -33,14 +33,18 @@ async function writeFileAtomic(filePath, content) {
   // Atomic replace into final location; best-effort cleanup on failure.
   try {
     await fs.rename(tempPath, filePath);
-  } catch (error) {
+} catch (error) {
+  if (error && error.code === 'EXDEV') {
     try {
-      await fs.unlink(tempPath);
-    } catch {
-      // ignore secondary cleanup errors
+      await fs.copyFile(tempPath, filePath);
+    } finally {
+      try { await fs.unlink(tempPath); } catch {}
     }
+  } else {
+    try { await fs.unlink(tempPath); } catch {}
     throw error;
   }
+}
 
   // Best-effort cleanup of the unique temp directory.
   try {
