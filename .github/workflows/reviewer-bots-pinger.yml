@@ -18,8 +18,8 @@ jobs:
     steps:
       - name: Wait for reviewer bots window
         run: |
-          # You can override with an env var named PING_WAIT_MINUTES at the job or repo level
-          MINS=${PING_WAIT_MINUTES:-5}
+          # You can override with an env var named BOT_PING_WINDOW_MINUTES at the job or repo level
+          MINS=${BOT_PING_WINDOW_MINUTES:-5}
           echo "Waiting ${MINS} minutes for reviewer bots to post..."
           sleep $(( MINS * 60 ))
 
@@ -38,10 +38,10 @@ jobs:
             ];
 
             const want = [
-              { id: 'sourcery-ai[bot]', trigger: '/sourcery review' },
-              { id: 'coderabbitai[bot]', trigger: '/review' },
-              { id: 'chatgpt-codex-connector[bot]', trigger: '/codex review' },
-              { id: 'claude', trigger: '/claude review' },
+              { id: 'sourcery-ai[bot]', trigger: process.env.BOT_TRIGGER_SOURCERY || '@sourcery-ai review' },
+              { id: 'coderabbitai[bot]', trigger: process.env.BOT_TRIGGER_CODERABBIT || '@coderabbitai review' },
+              { id: 'chatgpt-codex-connector[bot]', trigger: process.env.BOT_TRIGGER_CODEX || '/codex review' },
+              { id: 'claude', trigger: process.env.BOT_TRIGGER_CLAUDE || '/claude review' },
             ].filter(w => !automaticBots.includes(w.id));
 
             // Also consider Codoki as automatic by pattern
