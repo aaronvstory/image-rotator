@@ -3,7 +3,14 @@ name: "PR Agent: Apply Suggestions"
 on:
   issue_comment:
     types: [created, edited]
+  pull_request:
+    types: [labeled]
   workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to process"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -37,9 +44,26 @@ jobs:
             let baseRef = null;
 
             if (isDispatch) {
-              // Manual run allowed; do nothing special
-              shouldRun = true;
-              // Best-effort: if in dispatch, require it be run from PR page or set via inputs (not provided here)
+              const prInput = core.getInput('pr_number');
+              if (!prInput) {
+                core.setOutput('should_run', 'false');
+                core.warning('workflow_dispatch requires pr_number input');
+                return;
+              }
+              const prNum = Number(prInput);
+              const { data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNum,
+              });
+              if (!pr.draft && pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`) {
+                shouldRun = true;
+                prNumber = pr.number;
+                headSha = pr.head.sha;
+                headRef = pr.head.ref;
+                headRepo = pr.head.repo.full_name;
+                baseRef = pr.base.ref;
+              }
             } else if (context.eventName === 'issue_comment') {
               // Only handle comments on PRs
               if (!context.payload.issue.pull_request) {
@@ -61,9 +85,27 @@ jobs:
 
               const labels = pr.labels?.map(l => (typeof l === 'string' ? l : l.name)) || [];
               const requireLabel = process.env.PR_AGENT_REQUIRE_LABEL || '';
-              const hasLabel = !requireLabel || labels.includes(requireLabel) || labels.includes('agent:apply');
+              const labelsLC = labels.map(s => String(s || '').toLowerCase());
+              const hasLabel = !requireLabel
+                || labelsLC.includes(String(requireLabel).toLowerCase())
+                || labelsLC.includes('agent:apply')
+                || labelsLC.includes('ai: apply');
 
               if (matchesKeyword && hasLabel && !pr.draft && pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`) {
+                shouldRun = true;
+                prNumber = pr.number;
+                headSha = pr.head.sha;
+                headRef = pr.head.ref;
+                headRepo = pr.head.repo.full_name;
+                baseRef = pr.base.ref;
+              }
+            } else if (context.eventName === 'pull_request' && context.payload.action === 'labeled') {
+              // Trigger via label alone
+              const pr = context.payload.pull_request;
+              const labelName = (context.payload.label?.name || '').toLowerCase();
+              const accepted = ['agent:apply', 'ai: apply'];
+              const matches = accepted.includes(labelName);
+              if (matches && !pr.draft && pr.head.repo.full_name === `${context.repo.owner}/${context.repo.repo}`) {
                 shouldRun = true;
                 prNumber = pr.number;
                 headSha = pr.head.sha;

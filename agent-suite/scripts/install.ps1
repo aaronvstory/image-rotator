@@ -1,5 +1,5 @@
 param(
-  [Parameter(Mandatory=$true)][string]$TargetPath
+  [Parameter(Mandatory = $true)][string]$TargetPath
 )
 
 $ErrorActionPreference = 'Stop'
