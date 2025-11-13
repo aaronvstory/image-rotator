@@ -23,7 +23,6 @@ jobs:
       github.event.workflow_run.conclusion == 'failure' &&
       !startsWith(github.event.workflow_run.head_branch, 'codex/autofix-')
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout failed commit
         uses: actions/checkout@v4
@@ -34,12 +33,12 @@ jobs:
       - name: Setup Python (if needed for your tests)
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Setup Node.js (if needed for your tests)
         uses: actions/setup-node@v4
         with:
-          node-version: 'lts/*'
+          node-version: "lts/*"
 
       - name: Get failed workflow logs
         id: logs
@@ -64,7 +63,7 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          sandbox: workspace-write  # Allows code changes but not system access
+          sandbox: workspace-write # Allows code changes but not system access
           safety-strategy: drop-sudo
           output-file: codex-autofix-output.md
           codex-args: '["--max-iterations", "10"]'
@@ -126,72 +125,42 @@ jobs:
 
           echo "Tests passed after fix!"
 
-      - name: Create autofix branch and PR
+      - name: Commit and push fixes to original branch
+        if: success()
+        run: |
+          git config user.name "codex-bot"
+          git config user.email "codex-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Codex autofix for CI failure in run #${{ github.event.workflow_run.id }}"
+            git push origin "${{ github.event.workflow_run.head_branch }}"
+          fi
+
+      - name: Comment on PR (if associated)
         if: success()
         uses: actions/github-script@v7
-        env:
-          AUTOFIX_OUTPUT: ${{ steps.autofix.outputs.output-file }}
         with:
           script: |
-            const fs = require('fs');
-            const branchName = `codex/autofix-${context.payload.workflow_run.id}`;
-            const baseBranch = context.payload.workflow_run.head_branch;
+            // Try to find an associated PR for the failed commit
+            const headSha = context.payload.workflow_run.head_sha;
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({ owner: context.repo.owner, repo: context.repo.repo, commit_sha: headSha });
+            if (prs.data && prs.data.length) {
+              const pr = prs.data[0];
+              const body = `## 🤖 Codex Autofix Applied
 
-            // Create branch
-            await exec.exec('git', ['config', 'user.name', 'codex-bot']);
-            await exec.exec('git', ['config', 'user.email', 'codex-bot@users.noreply.github.com']);
-            await exec.exec('git', ['checkout', '-b', branchName]);
-            await exec.exec('git', ['add', '-A']);
-            await exec.exec('git', ['commit', '-m', `🤖 Codex autofix for CI failure in run #${context.payload.workflow_run.id}`]);
-            await exec.exec('git', ['push', 'origin', branchName]);
+              Minimal fixes were applied directly to the branch \
 
-            // Read Codex output for PR description
-            let fixDetails = 'Automated fix applied by Codex.';
-            try {
-              fixDetails = fs.readFileSync('codex-autofix-output.md', 'utf8');
-            } catch (e) {
-              console.log('Could not read autofix output file');
+              • Branch: \
+
+              • Run: [${context.payload.workflow_run.name} #${context.payload.workflow_run.run_number}](${context.payload.workflow_run.html_url})
+
+              Artifacts with details are attached to this workflow run.`;
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number, body });
+            } else {
+              console.log('No associated PR found; skipped commenting.');
             }
-
-            // Create PR
-            const pr = await github.rest.pulls.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🤖 Autofix: CI failure in ${context.payload.workflow_run.name}`,
-              head: branchName,
-              base: baseBranch,
-              body: `## 🤖 Automated Fix
-
-            This PR was automatically created by Codex to fix CI failures.
-
-            **Failed Workflow:** [${context.payload.workflow_run.name} #${context.payload.workflow_run.run_number}](${context.payload.workflow_run.html_url})
-            **Failed Commit:** ${context.payload.workflow_run.head_sha.substring(0, 7)}
-
-            ### What Codex Fixed:
-
-            ${fixDetails}
-
-            ### ✅ Verification
-
-            Tests were re-run locally and passed after applying this fix.
-
-            ---
-
-            **⚠️ Important:** Please review this PR carefully before merging. While Codex verified the tests pass, human review ensures the fix is appropriate and doesn't introduce other issues.
-
-            <sub>Automated by [Codex Autofix](https://developers.openai.com/codex/autofix-ci)</sub>
-            `
-            });
-
-            // Add labels
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr.data.number,
-              labels: ['codex-autofix', 'automated-pr']
-            });
-
-            console.log(`Created PR #${pr.data.number}: ${pr.data.html_url}`);
 
       - name: Upload autofix details
         if: always()

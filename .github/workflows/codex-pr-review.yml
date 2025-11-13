@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0  # Full history for better context
+          fetch-depth: 0 # Full history for better context
 
       - name: Fetch base branch for comparison
         run: |
@@ -36,7 +36,7 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          sandbox: read-only  # Safe - no write access needed for reviews
+          sandbox: read-only # Safe - no write access needed for reviews
           safety-strategy: drop-sudo
           output-file: codex-review-output.md
           prompt: |

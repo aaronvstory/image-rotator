@@ -1,0 +1,63 @@
+name: "Reviewer Bots Pinger"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  ping:
+    if: github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    concurrency:
+      group: bot-pinger-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Wait for reviewer bots window
+        run: |
+          # You can override with an env var named PING_WAIT_MINUTES at the job or repo level
+          MINS=${PING_WAIT_MINUTES:-5}
+          echo "Waiting ${MINS} minutes for reviewer bots to post..."
+          sleep $(( MINS * 60 ))
+
+      - name: Check comments and ping missing bots
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNum = context.payload.pull_request.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner: context.repo.owner, repo: context.repo.repo, issue_number: prNum, per_page: 100, sort: 'created', direction: 'desc' });
+
+            const have = new Set(comments.map(c => (c.user && c.user.login || '').toLowerCase()));
+            // Bots that are known to spawn automatically (do not ping even if absent)
+            const automaticBots = [
+              'github-copilot[bot]', // GitHub Copilot PR review is automatic
+              // Codoki bot usernames vary; treat anything containing "codoki" as automatic
+            ];
+
+            const want = [
+              { id: 'sourcery-ai[bot]', trigger: '/sourcery review' },
+              { id: 'coderabbitai[bot]', trigger: '/review' },
+              { id: 'chatgpt-codex-connector[bot]', trigger: '/codex review' },
+              { id: 'claude', trigger: '/claude review' },
+            ].filter(w => !automaticBots.includes(w.id));
+
+            // Also consider Codoki as automatic by pattern
+            const hasCodoki = Array.from(have).some(login => login.includes('codoki'));
+            if (hasCodoki) {
+              core.info('Detected Codoki in thread; not pinging (automatic).');
+            } else {
+              core.info('Codoki treated as automatic; not pinging.');
+            }
+
+            const missing = want.filter(w => !have.has(w.id));
+            if (!missing.length) {
+              console.log('All reviewer bots have already commented.');
+              return;
+            }
+
+            const triggers = missing.map(m => m.trigger).join('\n');
+            const body = `Pinging reviewer bots that have not yet posted:\n\n${triggers}\n\nNote: Skipping automatic bots (Codoki, Copilot).\n\n_(Automated ping after inactivity window)_`;
+            await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: prNum, body });
