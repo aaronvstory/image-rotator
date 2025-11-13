@@ -9,6 +9,7 @@ permissions:
   contents: write
   pull-requests: write
   actions: read
+  checks: write
 
 jobs:
   gate:
@@ -267,3 +268,33 @@ jobs:
             pr-agent-codex-repair.md
             pr-agent-test-failure.txt
           retention-days: 14
+
+      - name: Create status check
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const headSha = '${{ needs.gate.outputs.head_sha }}';
+            const prNumber = Number('${{ needs.gate.outputs.pr_number }}');
+            const fs = require('fs');
+            const failed = fs.existsSync('pr-agent-test-failure.txt');
+            const conclusion = failed ? 'failure' : 'success';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+
+            const title = failed ? 'PR Agent: tests failing' : 'PR Agent: ready to merge';
+            const summary = failed
+              ? 'Attempted minimal fixes; tests are still failing. See workflow run artifacts for details.'
+              : 'Minimal fixes and polish applied to this PR branch. Tests passed. You should be able to squash-merge.';
+
+            const text = `Artifacts (transcripts/logs): ${runUrl}\n\nPR: #${prNumber}`;
+
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'PR Agent',
+              head_sha: headSha,
+              status: 'completed',
+              conclusion,
+              details_url: runUrl,
+              output: { title, summary, text }
+            });
